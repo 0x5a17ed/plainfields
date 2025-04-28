@@ -174,10 +174,8 @@ func TestParser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tokens := Lex(tt.input)
-
 			var got []ParserEvent
-			for event := range ParseTokens(tokens) {
+			for event := range Parse(tt.input) {
 				// Skip error events for simplicity in these tests
 				if _, isError := event.(ErrorEvent); !isError {
 					got = append(got, event)
@@ -214,10 +212,8 @@ func TestParserErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tokens := Lex(tt.input)
 			var gotError string
-
-			for event := range ParseTokens(tokens) {
+			for event := range Parse(tt.input) {
 				if err, ok := event.(ErrorEvent); ok {
 					gotError = err.Msg
 					break

@@ -10,6 +10,19 @@ func isValueToken(typ TokenType) bool {
 		typ == TokenTrue || typ == TokenFalse || typ == TokenNil
 }
 
+// ParseOptions holds options for parsing.
+type ParseOptions struct {
+	// AllowPositional allows positional values without a key.
+	AllowPositional bool
+}
+
+// ParseOptionsDefaults returns the default parsing options.
+func ParseOptionsDefaults() ParseOptions {
+	return ParseOptions{
+		AllowPositional: true,
+	}
+}
+
 // ParserEvent represents different events that can occur during parsing.
 type ParserEvent interface {
 	isParserEvent()
@@ -314,7 +327,12 @@ func (p *Parser) parseValue() bool {
 }
 
 // ParseTokens returns an iterator that yields parse events
-func ParseTokens(tokens iter.Seq[Token]) iter.Seq[ParserEvent] {
+func ParseTokens(tokens iter.Seq[Token], opts ...ParseOptions) iter.Seq[ParserEvent] {
+	opt := ParseOptionsDefaults()
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+
 	return func(yield func(ParserEvent) bool) {
 		next, stop := iter.Pull(tokens)
 		defer stop()
@@ -324,6 +342,16 @@ func ParseTokens(tokens iter.Seq[Token]) iter.Seq[ParserEvent] {
 			next:  next,
 		}
 
+		// Set assignment mode if positional values are not allowed.
+		if !opt.AllowPositional {
+			p.assignmentMode = true
+		}
+
 		p.parseFieldList()
 	}
+}
+
+// Parse parses the input string and returns an iterator of ParserEvent.
+func Parse(input string, opts ...ParseOptions) iter.Seq[ParserEvent] {
+	return ParseTokens(Lex(input), opts...)
 }
