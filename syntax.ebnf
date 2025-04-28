@@ -1,0 +1,52 @@
+// Top-level EBNF grammar for the plainfields syntax.
+FieldList           ::= WS* Field ( WS* FieldSeparator WS* Field )* WS*
+
+Field               ::= ( "^" | "!" ) Identifier | Identifier ValueBinding
+
+ValueBinding        ::= WS* "=" WS* ( MapContent | ValueList )
+
+MapContent          ::= MapPair ( WS* ListSeparator WS* MapPair )*
+
+MapPair             ::= MapKey WS* ":" WS* Value
+
+MapKey              ::= Identifier | String | Number
+
+ValueList           ::= Value ( WS* ListSeparator WS* Value )*
+
+Value               ::= Identifier | Number | String | "true" | "false" | "nil"
+
+Identifier          ::= Letter ( Letter | Digit | "-" | "_" )*
+
+Number              ::= Sign? ( DecimalNumber | HexNumber | OctalNumber | BinaryNumber )
+
+Sign                ::= "+" | "-"
+
+DecimalNumber       ::= Digit ( Digit | "_" )*
+                        ( "." ( Digit | "_" )* )?
+                        ( ( "e" | "E" ) Sign? Digit ( Digit | "_" )* )?
+
+HexNumber           ::= "0" ( "x" | "X" ) HexDigit ( HexDigit | "_" )*
+                        ( "." ( HexDigit | "_" )* )?
+                        ( ( "p" | "P" ) Sign? Digit ( Digit | "_" )* )?
+
+OctalNumber         ::= "0" ( "o" | "O" ) OctalDigit ( OctalDigit | "_" )*
+
+BinaryNumber        ::= "0" ( "b" | "B" ) BinaryDigit ( BinaryDigit | "_" )*
+
+String              ::= '"' ( [^"\\] | "\\" . )* '"' | "'" ( [^'\\] | "\\" . )* "'"
+
+FieldSeparator      ::= ","
+
+ListSeparator       ::= ";"
+
+WS                  ::= [ \t\n\r]+
+
+Letter              ::= [A-Za-z]
+
+Digit               ::= [0-9]
+
+HexDigit            ::= [0-9A-Fa-f]
+
+OctalDigit          ::= [0-7]
+
+BinaryDigit         ::= [01]
