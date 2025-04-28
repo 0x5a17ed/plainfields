@@ -130,6 +130,19 @@ func TestBuilder(t *testing.T) {
 			options: BuilderDefaults(),
 			wanted:  "mixed=string;123;true;nil;45.67",
 		},
+
+		{
+			name: "positional values",
+			builder: func(b *Builder) *Builder {
+				return b.Value("a").
+					Value("b").
+					Value("c").
+					Field("d", 123).
+					Field("flag", true)
+			},
+			options: BuilderDefaults(),
+			wanted:  "a,b,c,d=123,flag=true",
+		},
 	}
 
 	for _, tt := range tests {
@@ -176,12 +189,25 @@ func TestNeedsQuoting(t *testing.T) {
 }
 
 // Test that the builder panics with odd number of arguments to Pairs
-func TestPairsPanic(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("expected panic with odd number of pair arguments, but no panic occurred")
-		}
-	}()
+func TestBuilder_Panics(t *testing.T) {
+	t.Run("odd number of arguments", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("expected panic with odd number of pair arguments, but no panic occurred")
+			}
+		}()
 
-	NewBuilder().Pairs("settings", "key1", "value1", "key2") // Missing value
+		NewBuilder().Pairs("settings", "key1", "value1", "key2") // Missing value
+	})
+
+	t.Run("positional value after field", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("expected panic with positional value after field, but no panic occurred")
+			}
+		}()
+
+		NewBuilder().Field("name", "john").Value(123) // Positional value after field
+	})
+
 }
