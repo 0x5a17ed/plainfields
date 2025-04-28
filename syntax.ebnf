@@ -1,7 +1,13 @@
 // Top-level EBNF grammar for the plainfields syntax.
-FieldList           ::= WS* Field ( WS* FieldSeparator WS* Field )* WS*
+FieldList           ::= WS* (PositionalSection WS* ("," WS* AssignmentSection)? | AssignmentSection) WS*
 
-Field               ::= ( "^" | "!" ) Identifier | Identifier ValueBinding
+PositionalSection   ::= PositionalValue (WS* "," WS* PositionalValue)*
+
+PositionalValue     ::= Value
+
+AssignmentSection   ::= AssignmentField (WS* "," WS* AssignmentField)*
+
+AssignmentField     ::= ( "^" | "!" ) Identifier | Identifier ValueBinding
 
 ValueBinding        ::= WS* "=" WS* ( MapContent | ValueList )
 

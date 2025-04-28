@@ -5,12 +5,23 @@ import (
 	"iter"
 )
 
+func isValueToken(typ TokenType) bool {
+	return typ == TokenNumber || typ == TokenString ||
+		typ == TokenTrue || typ == TokenFalse || typ == TokenNil
+}
+
 // ParserEvent represents different events that can occur during parsing.
 type ParserEvent interface {
 	isParserEvent()
 }
 
 type (
+	// PositionalValueEvent represents a positional value without a key.
+	PositionalValueEvent struct {
+		Type  TokenType
+		Value string
+	}
+
 	// FieldStartEvent represents the beginning of a field.
 	FieldStartEvent struct {
 		Name string
@@ -46,23 +57,27 @@ type (
 	}
 )
 
-func (FieldStartEvent) isParserEvent() {}
-func (FieldEndEvent) isParserEvent()   {}
-func (ValueEvent) isParserEvent()      {}
-func (ListStartEvent) isParserEvent()  {}
-func (ListEndEvent) isParserEvent()    {}
-func (MapStartEvent) isParserEvent()   {}
-func (MapEndEvent) isParserEvent()     {}
-func (MapKeyEvent) isParserEvent()     {}
-func (ErrorEvent) isParserEvent()      {}
+func (PositionalValueEvent) isParserEvent() {}
+func (FieldStartEvent) isParserEvent()      {}
+func (FieldEndEvent) isParserEvent()        {}
+func (ValueEvent) isParserEvent()           {}
+func (ListStartEvent) isParserEvent()       {}
+func (ListEndEvent) isParserEvent()         {}
+func (MapStartEvent) isParserEvent()        {}
+func (MapEndEvent) isParserEvent()          {}
+func (MapKeyEvent) isParserEvent()          {}
+func (ErrorEvent) isParserEvent()           {}
 
 // Parser holds the state for parsing.
 type Parser struct {
-	current  Token
-	hasToken bool
-	yield    func(ParserEvent) bool
-	done     bool
-	next     func() (Token, bool)
+	yield func(ParserEvent) bool
+	next  func() (Token, bool)
+
+	done           bool
+	peeked         *Token
+	current        Token
+	hasToken       bool
+	assignmentMode bool
 }
 
 // emit sends an event through yield.
@@ -81,11 +96,31 @@ func (p *Parser) errorf(format string, args ...any) bool {
 	return false
 }
 
+// peek looks at the next token without consuming it.
+func (p *Parser) peek() *Token {
+	// If we have not peeked yet, get the next token.
+	if p.peeked == nil {
+		// Fetch the next token and store it.
+		if tok, ok := p.next(); ok {
+			p.peeked = &tok
+		}
+	}
+	return p.peeked
+}
+
 // advance advances to the next token.
 func (p *Parser) advance() bool {
-	if tok, ok := p.next(); ok {
+	if p.peeked != nil {
+		// If we have a peeked token, consume it.
+		p.current = *p.peeked
+		p.peeked = nil
+		p.hasToken = true
+
+	} else if tok, ok := p.next(); ok {
+		// If we have no peeked token, get the next token.
 		p.hasToken = true
 		p.current = tok
+
 	} else {
 		p.hasToken = false
 	}
@@ -124,43 +159,76 @@ func (p *Parser) parseFieldList() {
 
 // parseField parses a single field
 func (p *Parser) parseField() bool {
-	switch p.current.Typ {
-	case TokenFieldPrefix:
-		prefix := p.current.Val // '^' or '!'
-		if !p.advance() || !p.expect(TokenIdentifier) {
-			return false
-		}
-		name := p.current.Val
-
-		// Emit as a boolean assignment.
-		p.emit(FieldStartEvent{name})
-		p.emit(ListStartEvent{})
-		if prefix == "^" {
-			p.emit(ValueEvent{TokenTrue, "true"})
-		} else { // `!`
-			p.emit(ValueEvent{TokenFalse, "false"})
-		}
-		p.emit(ListEndEvent{})
-		p.emit(FieldEndEvent{})
-		p.advance()
-
-	case TokenIdentifier:
-		p.emit(FieldStartEvent{Name: p.current.Val})
-
-		if !p.advance() || !p.expect(TokenAssign) {
-			return false
-		}
-
-		if !p.advance() || !p.parseValueList() {
-			return false
-		}
-
-		p.emit(FieldEndEvent{})
-
-	default:
-		return p.errorf("expected field prefix or identifier, got %s", p.current.Typ)
+	if p.current.Typ == TokenFieldPrefix {
+		p.assignmentMode = true
+		return p.parseFieldPrefix()
 	}
 
+	// Handle identifier fields - could be positional value or assignment.
+	if p.current.Typ == TokenIdentifier {
+		identifier := p.current.Val
+
+		// Check if this is an assignment (identifier=value)
+		if t := p.peek(); t != nil && t.Typ == TokenAssign {
+			p.assignmentMode = true
+			p.advance() // Consume the = token
+			return p.parseAssignment(identifier)
+		}
+
+		// This is a positional value
+		if p.assignmentMode {
+			return p.errorf("positional value '%s' not allowed after assignments", identifier)
+		}
+
+		p.emit(PositionalValueEvent{Type: TokenIdentifier, Value: identifier})
+		return p.advance()
+	}
+
+	// Handle other value types as positional values
+	if isValueToken(p.current.Typ) {
+		if p.assignmentMode {
+			return p.errorf("positional value not allowed after assignments")
+		}
+
+		p.emit(PositionalValueEvent{Type: p.current.Typ, Value: p.current.Val})
+		return p.advance()
+	}
+
+	// If we reach here, we have an unexpected token.
+	return p.errorf("expected field prefix, identifier, or value, got %s", p.current.Typ)
+}
+
+// parseFieldPrefix parses a field with a prefix (^ or !)
+func (p *Parser) parseFieldPrefix() bool {
+	prefix := p.current.Val // '^' or '!'
+	if !p.advance() || !p.expect(TokenIdentifier) {
+		return false
+	}
+	name := p.current.Val
+
+	// Emit as a boolean assignment.
+	p.emit(FieldStartEvent{name})
+	p.emit(ListStartEvent{})
+	if prefix == "^" {
+		p.emit(ValueEvent{TokenTrue, "true"})
+	} else { // `!`
+		p.emit(ValueEvent{TokenFalse, "false"})
+	}
+	p.emit(ListEndEvent{})
+	p.emit(FieldEndEvent{})
+	return p.advance()
+}
+
+// parseAssignment handles key=value fields
+func (p *Parser) parseAssignment(name string) bool {
+	p.emit(FieldStartEvent{Name: name})
+
+	// We're already past the assign token
+	if !p.advance() || !p.parseValueList() {
+		return false
+	}
+
+	p.emit(FieldEndEvent{})
 	return true
 }
 
@@ -170,19 +238,18 @@ func (p *Parser) parseValueList() bool {
 		return false
 	}
 
-	// Save the current token info for potential map detection.
-	firstValueType := p.current.Typ
-	firstValueVal := p.current.Val
-
 	// Check if this is a map, the next token would be `:`.
-	if p.advance() && p.current.Typ == TokenPairSeparator {
-		// It's a map, parse as a map starting with the saved first key.
-		return p.parseMapFrom(firstValueType, firstValueVal)
+	if t := p.peek(); t != nil && t.Typ == TokenPairSeparator {
+		// It's a map, parse as a map starting with the first key.
+		return p.parseMapFrom()
 	}
 
 	// It's a regular list.
 	p.emit(ListStartEvent{})
-	p.emit(ValueEvent{Type: firstValueType, Value: firstValueVal})
+	p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
+
+	// Advance to the next token for the list separator.
+	p.advance()
 
 	for p.hasToken && p.current.Typ == TokenListSeparator {
 		if !p.advance() || !p.parseValue() {
@@ -191,9 +258,7 @@ func (p *Parser) parseValueList() bool {
 		p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
 
 		// Advance to the next token to check for more separators.
-		if !p.advance() {
-			break
-		}
+		p.advance()
 	}
 
 	p.emit(ListEndEvent{})
@@ -201,12 +266,12 @@ func (p *Parser) parseValueList() bool {
 }
 
 // parseMapFrom parses a map starting from a known first key.
-func (p *Parser) parseMapFrom(keyType TokenType, keyVal string) bool {
+func (p *Parser) parseMapFrom() bool {
 	p.emit(MapStartEvent{})
-	p.emit(MapKeyEvent{Type: keyType, Value: keyVal})
+	p.emit(MapKeyEvent{Type: p.current.Typ, Value: p.current.Val})
 
 	// We're already at the `:` token.
-	if !p.expect(TokenPairSeparator) {
+	if !p.advance() || !p.expect(TokenPairSeparator) {
 		return false
 	}
 
@@ -216,7 +281,7 @@ func (p *Parser) parseMapFrom(keyType TokenType, keyVal string) bool {
 	}
 	p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
 
-	// Parse the remaining key-value pairs.
+	// ParseTokens the remaining key-value pairs.
 	for p.advance() && p.current.Typ == TokenListSeparator {
 		if !p.advance() || !p.parseValue() {
 			return false
@@ -248,8 +313,8 @@ func (p *Parser) parseValue() bool {
 	}
 }
 
-// Parse returns an iterator that yields parse events
-func Parse(tokens iter.Seq[Token]) iter.Seq[ParserEvent] {
+// ParseTokens returns an iterator that yields parse events
+func ParseTokens(tokens iter.Seq[Token]) iter.Seq[ParserEvent] {
 	return func(yield func(ParserEvent) bool) {
 		next, stop := iter.Pull(tokens)
 		defer stop()

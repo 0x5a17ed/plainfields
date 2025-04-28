@@ -11,6 +11,21 @@ func TestParser(t *testing.T) {
 		input    string
 		expected []ParserEvent
 	}{
+		{"empty input", "", nil},
+
+		{"single positional value", "name", []ParserEvent{
+			PositionalValueEvent{TokenIdentifier, "name"},
+		}},
+
+		{"multiple positional value", `name,123,true,false,nil,"Hello World!"`, []ParserEvent{
+			PositionalValueEvent{TokenIdentifier, "name"},
+			PositionalValueEvent{TokenNumber, "123"},
+			PositionalValueEvent{TokenTrue, "true"},
+			PositionalValueEvent{TokenFalse, "false"},
+			PositionalValueEvent{TokenNil, "nil"},
+			PositionalValueEvent{TokenString, `"Hello World!"`},
+		}},
+
 		{"simple field", "name=john", []ParserEvent{
 			FieldStartEvent{"name"},
 			ListStartEvent{},
@@ -162,18 +177,18 @@ func TestParser(t *testing.T) {
 			tokens := Lex(tt.input)
 
 			var got []ParserEvent
-			for event := range Parse(tokens) {
+			for event := range ParseTokens(tokens) {
 				// Skip error events for simplicity in these tests
 				if _, isError := event.(ErrorEvent); !isError {
 					got = append(got, event)
 				} else {
-					t.Errorf("Parse() error = %v", event)
+					t.Errorf("ParseTokens() error = %v", event)
 					return
 				}
 			}
 
 			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("Parse() = %v, want %v", got, tt.expected)
+				t.Errorf("ParseTokens() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
@@ -186,15 +201,15 @@ func TestParserErrors(t *testing.T) {
 		expectError string
 	}{
 		{"missing identifier after prefix", "^", "expected Identifier, got EOF"},
-		{"missing assignment", "name", "expected Assign, got EOF"},
 		{"missing value after assignment", "name=", "expected value, got EOF"},
-		{"double field seperator", "a=1,,", "expected field prefix or identifier, got FieldSeparator"},
+		{"double field seperator", "a=1,,", "expected field prefix, identifier, or value, got FieldSeparator"},
 		{"invalid value", "name==", "expected value, got Assign"},
 		{"incomplete map", "settings=key:", "expected value, got EOF"},
 		{"map missing key after list separator", "settings=key:value;", "expected value, got EOF"},
 		{"mixing map and list semantics", "settings=key:value;value", "expected PairSeparator, got EOF"},
 		{"missing value after list separator", "a=1;", "expected value, got EOF"},
 		{"invalid map key", "settings=:value", "expected value, got PairSeparator"},
+		{"positional value after field", "name=john,123", "positional value not allowed after assignments"},
 	}
 
 	for _, tt := range tests {
@@ -202,7 +217,7 @@ func TestParserErrors(t *testing.T) {
 			tokens := Lex(tt.input)
 			var gotError string
 
-			for event := range Parse(tokens) {
+			for event := range ParseTokens(tokens) {
 				if err, ok := event.(ErrorEvent); ok {
 					gotError = err.Msg
 					break
@@ -212,7 +227,7 @@ func TestParserErrors(t *testing.T) {
 			if gotError == "" {
 				t.Errorf("Expected error, got none")
 			} else if gotError != tt.expectError {
-				t.Errorf("Parse() error = %q, want %q", gotError, tt.expectError)
+				t.Errorf("ParseTokens() error = %q, want %q", gotError, tt.expectError)
 			}
 		})
 	}
