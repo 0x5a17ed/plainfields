@@ -39,6 +39,7 @@ type (
 	FieldStartEvent struct {
 		Name string
 	}
+
 	// FieldEndEvent represents the end of a field.
 	FieldEndEvent struct{}
 
@@ -50,13 +51,16 @@ type (
 
 	// ListStartEvent represents the beginning of a value list.
 	ListStartEvent struct{}
+
 	// ListEndEvent represents the end of a value list.
 	ListEndEvent struct{}
 
 	// MapStartEvent represents the beginning of a map.
 	MapStartEvent struct{}
+
 	// MapEndEvent represents the end of a map.
 	MapEndEvent struct{}
+
 	// MapKeyEvent represents a key in a map.
 	MapKeyEvent struct {
 		Type  TokenType
@@ -189,7 +193,7 @@ func (p *Parser) parseField() bool {
 
 		// This is a positional value.
 		if p.assignmentMode {
-			return p.errorf("positional value '%s' not allowed after assignments", identifier)
+			return p.errorf("positional value %q not allowed here", identifier)
 		}
 
 		p.emit(PositionalValueEvent{Type: TokenIdentifier, Value: identifier})
@@ -199,7 +203,7 @@ func (p *Parser) parseField() bool {
 	// Handle other value types as positional values.
 	if isValueToken(p.current.Typ) {
 		if p.assignmentMode {
-			return p.errorf("positional value not allowed after assignments")
+			return p.errorf("positional value not allowed here")
 		}
 
 		p.emit(PositionalValueEvent{Type: p.current.Typ, Value: p.current.Val})

@@ -5,6 +5,21 @@ import (
 	"testing"
 )
 
+// collectEvents is a helper function to collect events from the parser.
+func collectEvents(input string, options ...ParseOptions) ([]ParserEvent, *ErrorEvent) {
+	var events []ParserEvent
+
+	for event := range Parse(input, options...) {
+		if err, isError := event.(ErrorEvent); isError {
+			return nil, &err
+		} else {
+			events = append(events, event)
+		}
+	}
+
+	return events, nil
+}
+
 func TestParser(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -174,15 +189,10 @@ func TestParser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var got []ParserEvent
-			for event := range Parse(tt.input) {
-				// Skip error events for simplicity in these tests
-				if _, isError := event.(ErrorEvent); !isError {
-					got = append(got, event)
-				} else {
-					t.Errorf("ParseTokens() error = %v", event)
-					return
-				}
+			got, err := collectEvents(tt.input)
+			if err != nil {
+				t.Errorf("ParseTokens() error = %v", err)
+				return
 			}
 
 			if !reflect.DeepEqual(got, tt.expected) {
@@ -207,24 +217,53 @@ func TestParserErrors(t *testing.T) {
 		{"mixing map and list semantics", "settings=key:value;value", "expected PairSeparator, got EOF"},
 		{"missing value after list separator", "a=1;", "expected value, got EOF"},
 		{"invalid map key", "settings=:value", "expected value, got PairSeparator"},
-		{"positional value after field", "name=john,123", "positional value not allowed after assignments"},
+		{"positional value after field", "name=john,123", "positional value not allowed here"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var gotError string
-			for event := range Parse(tt.input) {
-				if err, ok := event.(ErrorEvent); ok {
-					gotError = err.Msg
-					break
+			if _, err := collectEvents(tt.input); err == nil {
+				t.Errorf("Expected error, got none")
+			} else if err.Msg != tt.expectError {
+				t.Errorf("ParseTokens() error = %q, want %q", err.Msg, tt.expectError)
+			}
+		})
+	}
+}
+
+func TestParseOptions(t *testing.T) {
+	tt := []struct {
+		name         string
+		options      ParseOptions
+		input        string
+		wantedEvents []ParserEvent
+		wantedError  string
+	}{
+		{
+			name: "disable positional values",
+			options: ParseOptions{
+				AllowPositional: false,
+			},
+			input:       "name,omitempty",
+			wantedError: `positional value "name" not allowed here`,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := collectEvents(tc.input, tc.options)
+
+			if err != nil && tc.wantedError == "" {
+				t.Errorf("ParseWithOptions() error = %v", err)
+			} else if err == nil && tc.wantedError != "" {
+				t.Errorf("ParseWithOptions() expected error = %q, got none", tc.wantedError)
+			} else if err != nil && tc.wantedError != "" && err.Msg != tc.wantedError {
+				t.Errorf("ParseWithOptions() error = %q, want %q", err.Msg, tc.wantedError)
+			} else if err == nil && tc.wantedError == "" {
+				if !reflect.DeepEqual(got, tc.wantedEvents) {
+					t.Errorf("ParseWithOptions() = %v, want %v", got, tc.wantedEvents)
 				}
 			}
 
-			if gotError == "" {
-				t.Errorf("Expected error, got none")
-			} else if gotError != tt.expectError {
-				t.Errorf("ParseTokens() error = %q, want %q", gotError, tt.expectError)
-			}
 		})
 	}
 }
