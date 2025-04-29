@@ -131,6 +131,7 @@ func lexTop(l *lexer) stateFn {
 		return l.errorf("unexpected character: %#U", ch)
 	}
 }
+
 func lexIdentifierOrKeywordContinue(l *lexer) stateFn {
 	if isIdentifierContinue(l.peek()) {
 		l.next()
