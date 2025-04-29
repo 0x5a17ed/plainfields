@@ -29,18 +29,17 @@ type ParserEvent interface {
 }
 
 type (
-	// PositionalValueEvent represents a positional value without a key.
-	PositionalValueEvent struct {
-		Type  TokenType
-		Value string
+	// OrderedFieldStartEvent represents a positional field value assignment without a key.
+	OrderedFieldStartEvent struct {
+		Index int
 	}
 
-	// FieldStartEvent represents the beginning of a field.
-	FieldStartEvent struct {
+	// LabeledFieldStartEvent represents the beginning of a field value assignment with a key.
+	LabeledFieldStartEvent struct {
 		Name string
 	}
 
-	// FieldEndEvent represents the end of a field.
+	// FieldEndEvent represents the end of a field value assignment.
 	FieldEndEvent struct{}
 
 	// ValueEvent represents a value in the field.
@@ -74,26 +73,28 @@ type (
 	}
 )
 
-func (PositionalValueEvent) isParserEvent() {}
-func (FieldStartEvent) isParserEvent()      {}
-func (FieldEndEvent) isParserEvent()        {}
-func (ValueEvent) isParserEvent()           {}
-func (ListStartEvent) isParserEvent()       {}
-func (ListEndEvent) isParserEvent()         {}
-func (MapStartEvent) isParserEvent()        {}
-func (MapEndEvent) isParserEvent()          {}
-func (MapKeyEvent) isParserEvent()          {}
-func (ErrorEvent) isParserEvent()           {}
+func (OrderedFieldStartEvent) isParserEvent() {}
+func (LabeledFieldStartEvent) isParserEvent() {}
+func (FieldEndEvent) isParserEvent()          {}
+func (ValueEvent) isParserEvent()             {}
+func (ListStartEvent) isParserEvent()         {}
+func (ListEndEvent) isParserEvent()           {}
+func (MapStartEvent) isParserEvent()          {}
+func (MapEndEvent) isParserEvent()            {}
+func (MapKeyEvent) isParserEvent()            {}
+func (ErrorEvent) isParserEvent()             {}
 
 // Parser holds the state for parsing.
 type Parser struct {
 	yield func(ParserEvent) bool
 	next  func() (Token, bool)
 
-	done           bool
-	peeked         *Token
-	current        Token
-	hasToken       bool
+	done     bool
+	peeked   *Token
+	current  Token
+	hasToken bool
+
+	fieldIndex     int
 	assignmentMode bool
 }
 
@@ -196,7 +197,10 @@ func (p *Parser) parseField() bool {
 			return p.errorf("positional value %q not allowed here", identifier)
 		}
 
-		p.emit(PositionalValueEvent{Type: TokenIdentifier, Value: identifier})
+		p.emit(OrderedFieldStartEvent{p.fieldIndex})
+		p.fieldIndex++
+		p.emit(ValueEvent{Type: TokenIdentifier, Value: identifier})
+		p.emit(FieldEndEvent{})
 		return p.advance()
 	}
 
@@ -206,7 +210,10 @@ func (p *Parser) parseField() bool {
 			return p.errorf("positional value not allowed here")
 		}
 
-		p.emit(PositionalValueEvent{Type: p.current.Typ, Value: p.current.Val})
+		p.emit(OrderedFieldStartEvent{p.fieldIndex})
+		p.fieldIndex++
+		p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
+		p.emit(FieldEndEvent{})
 		return p.advance()
 	}
 
@@ -223,7 +230,7 @@ func (p *Parser) parseFieldPrefix() bool {
 	name := p.current.Val
 
 	// Emit as a boolean assignment.
-	p.emit(FieldStartEvent{name})
+	p.emit(LabeledFieldStartEvent{name})
 	p.emit(ListStartEvent{})
 	if prefix == "^" {
 		p.emit(ValueEvent{TokenTrue, "true"})
@@ -237,7 +244,7 @@ func (p *Parser) parseFieldPrefix() bool {
 
 // parseAssignment handles key=value fields
 func (p *Parser) parseAssignment(name string) bool {
-	p.emit(FieldStartEvent{Name: name})
+	p.emit(LabeledFieldStartEvent{Name: name})
 
 	// We're already past the assign token.
 	if !p.advance() || !p.parseValueList() {
