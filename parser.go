@@ -73,6 +73,11 @@ type (
 	}
 )
 
+// Error implements the error interface for ErrorEvent.
+func (e ErrorEvent) Error() string {
+	return fmt.Sprintf("Error at %s: %s", e.Pos, e.Msg)
+}
+
 func (OrderedFieldStartEvent) isParserEvent() {}
 func (LabeledFieldStartEvent) isParserEvent() {}
 func (FieldEndEvent) isParserEvent()          {}
