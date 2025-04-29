@@ -1,6 +1,7 @@
 # PlainFields 🌱
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/yourusername/plainfields.svg)](https://pkg.go.dev/github.com/yourusername/plainfields)
+[![Go Reference](https://pkg.go.dev/badge/github.com/0x5a17ed/plainfields.svg)](https://pkg.go.dev/github.com/0x5a17ed/plainfields)
+[![License: 0BSD](https://img.shields.io/badge/License-0BSD-blue.svg)](https://opensource.org/licenses/0BSD)
 
 PlainFields is a lightweight, human-friendly configuration language for Go applications. It provides a simple syntax for expressing structured data with fields, lists, and key-value pairs.
 
@@ -13,7 +14,7 @@ settings=theme:dark;indent:4;display:compact
 ## ✨ Features
 
 - **🔤 Clean, minimal syntax**  
-  No curly braces, no complex nesting. Easy to read and write by humans
+  No curly braces, no complex nesting. Friendly to read and write by humans
 - **📏 Compact**  
   Minimal syntax overhead, no deep nesting to navigate
 - **🔄 Boolean toggles**  
@@ -94,16 +95,17 @@ PlainFields uses a simple, flat structure:
 - **Boolean toggles** use prefixes: `^enabled`, `!disabled`
 - **Lists** use semicolons: `tags=red;green;blue`
 - **Maps** (key-value pairs) use colon and semicolon: `settings=theme:dark;fontSize:14`
+- **Blank spaces** are allowed around syntax elements
 
 
 ### 🧪 Data Types
 
-- **🔤 Strings**: `name=john` or `message="Hello, world!"` (quotes for special chars)
-- **🔢 Numbers**: `age=30`, `pi=3.14`, `hex=0xFF`, `binary=0b1010`
-- **✅ Booleans**: `active=true` or `valid=false`
-- **📋 Lists**: `colors=red;green;blue`
-- **🗺️ Maps**: `settings=theme:dark;fontSize:14`
-- **❌ Null**: `value=nil`
+- **Strings**: `name=john` or `message="Hello, world!"` (quotes for special chars)
+- **Numbers**: `age=30`, `pi=3.14`, `hex=0xFF`, `binary=0b1010`
+- **Booleans**: `active=true` or `valid=false`
+- **Lists**: `colors=red;green;blue`
+- **Maps**: `settings=theme:dark;fontSize:14`
+- **Null**: `value=nil`
 
 
 ## 📚 Detailed Usage
