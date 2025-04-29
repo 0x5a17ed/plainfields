@@ -94,10 +94,9 @@ type Parser struct {
 }
 
 // emit sends an event through yield.
-func (p *Parser) emit(event ParserEvent) {
-	if p.done || !p.yield(event) {
-		p.done = true
-	}
+func (p *Parser) emit(event ParserEvent) bool {
+	p.done = p.done || !p.yield(event)
+	return !p.done
 }
 
 // errorf sends an error event through yield.
@@ -188,7 +187,7 @@ func (p *Parser) parseField() bool {
 			return p.parseAssignment(identifier)
 		}
 
-		// This is a positional value
+		// This is a positional value.
 		if p.assignmentMode {
 			return p.errorf("positional value '%s' not allowed after assignments", identifier)
 		}
@@ -197,7 +196,7 @@ func (p *Parser) parseField() bool {
 		return p.advance()
 	}
 
-	// Handle other value types as positional values
+	// Handle other value types as positional values.
 	if isValueToken(p.current.Typ) {
 		if p.assignmentMode {
 			return p.errorf("positional value not allowed after assignments")
@@ -236,7 +235,7 @@ func (p *Parser) parseFieldPrefix() bool {
 func (p *Parser) parseAssignment(name string) bool {
 	p.emit(FieldStartEvent{Name: name})
 
-	// We're already past the assign token
+	// We're already past the assign token.
 	if !p.advance() || !p.parseValueList() {
 		return false
 	}
@@ -281,18 +280,10 @@ func (p *Parser) parseValueList() bool {
 // parseMapFrom parses a map starting from a known first key.
 func (p *Parser) parseMapFrom() bool {
 	p.emit(MapStartEvent{})
-	p.emit(MapKeyEvent{Type: p.current.Typ, Value: p.current.Val})
 
-	// We're already at the `:` token.
-	if !p.advance() || !p.expect(TokenPairSeparator) {
+	if !p.parseKeyValuePair() {
 		return false
 	}
-
-	// Advance to the next token for the value.
-	if !p.advance() || !p.parseValue() {
-		return false
-	}
-	p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
 
 	// ParseTokens the remaining key-value pairs.
 	for p.advance() && p.current.Typ == TokenListSeparator {
@@ -300,20 +291,30 @@ func (p *Parser) parseMapFrom() bool {
 			return false
 		}
 
-		p.emit(MapKeyEvent{Type: p.current.Typ, Value: p.current.Val})
-
-		if !p.advance() || !p.expect(TokenPairSeparator) {
+		if !p.parseKeyValuePair() {
 			return false
 		}
-
-		if !p.advance() || !p.parseValue() {
-			return false
-		}
-		p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
 	}
 
 	p.emit(MapEndEvent{})
 	return true
+}
+
+// parseKeyValuePair parses a key-value pair in a map.
+func (p *Parser) parseKeyValuePair() bool {
+	p.emit(MapKeyEvent{Type: p.current.Typ, Value: p.current.Val})
+
+	// Parse the colon between key and value.
+	if !p.advance() || !p.expect(TokenPairSeparator) {
+		return false
+	}
+
+	// Parse the value.
+	if !p.advance() || !p.parseValue() {
+		return false
+	}
+
+	return p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
 }
 
 // parseValue parses a single value
