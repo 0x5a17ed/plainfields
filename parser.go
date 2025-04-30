@@ -205,9 +205,7 @@ func (p *Parser) parseField() bool {
 
 		p.emit(OrderedFieldStartEvent{p.fieldIndex})
 		p.fieldIndex++
-		p.emit(ListStartEvent{})
 		p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
-		p.emit(ListEndEvent{})
 		p.emit(FieldEndEvent{})
 		return p.advance()
 
@@ -226,13 +224,11 @@ func (p *Parser) parseFieldPrefix() bool {
 
 	// Emit as a boolean assignment.
 	p.emit(LabeledFieldStartEvent{name})
-	p.emit(ListStartEvent{})
 	if prefix == "^" {
 		p.emit(ValueEvent{TokenTrue, "true"})
 	} else { // `!`
 		p.emit(ValueEvent{TokenFalse, "false"})
 	}
-	p.emit(ListEndEvent{})
 	p.emit(FieldEndEvent{})
 	return p.advance()
 }
@@ -252,7 +248,7 @@ func (p *Parser) parseAssignment() bool {
 	}
 
 	// We're already past the assign token.
-	if !p.advance() || !p.parseValueList() {
+	if !p.advance() || !p.parseValueContent() {
 		return false
 	}
 
@@ -260,18 +256,31 @@ func (p *Parser) parseAssignment() bool {
 	return true
 }
 
-// parseValueList parses a list of values, detecting if it's a map.
-func (p *Parser) parseValueList() bool {
+// parseValueContent parses a list of values, detecting if it's a map.
+func (p *Parser) parseValueContent() bool {
 	if !p.parseValue() {
 		return false
 	}
 
-	// Check if this is a map, the next token would be `:`.
-	if p.isNext(TokenPairSeparator) {
+	switch {
+	case p.isNext(TokenPairSeparator):
 		// It's a map, parse as a map starting with the first key.
 		return p.parseMapFrom()
-	}
 
+	case p.isNext(TokenListSeparator):
+		// It's a list, parse as a list starting with the first value.
+		return p.parseListFrom()
+
+	default:
+		// If we don't have a list or map, just emit a single value.
+		p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
+		p.advance() // Consume the value.
+		return true
+	}
+}
+
+// parseListFrom parses a list starting from a known first value.
+func (p *Parser) parseListFrom() bool {
 	// It's a regular list.
 	p.emit(ListStartEvent{})
 	p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})

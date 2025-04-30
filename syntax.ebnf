@@ -1,23 +1,27 @@
 // Top-level EBNF grammar for the plainfields syntax.
-FieldList           ::= WS* (PositionalSection WS* ("," WS* AssignmentSection)? | AssignmentSection) WS*
+FieldList           ::= WS* (OrderedSection WS* ("," WS* LabeledSection)? | LabeledSection) WS*
 
-PositionalSection   ::= PositionalValue (WS* "," WS* PositionalValue)*
+OrderedSection      ::= OrderedValue (WS* "," WS* OrderedValue)*
 
-PositionalValue     ::= Value
+OrderedValue        ::= Value
 
-AssignmentSection   ::= AssignmentField (WS* "," WS* AssignmentField)*
+LabeledSection      ::= AssignmentField (WS* "," WS* AssignmentField)*
 
 AssignmentField     ::= ( "^" | "!" ) Identifier | Identifier ValueBinding
 
-ValueBinding        ::= WS* "=" WS* ( MapContent | ValueList )?
+ValueBinding        ::= WS* "=" WS* ValueContent?
 
-MapContent          ::= MapPair ( WS* ListSeparator WS* MapPair )*
+ValueContent        ::= DictContainer | ListContainer | SingleValue
 
-MapPair             ::= MapKey WS* ":" WS* Value
+SingleValue         ::= Value
 
-MapKey              ::= Identifier | String | Number
+ListContainer       ::= Value WS* ListSeparator WS* ( Value ( WS* ListSeparator WS* Value )* )?
 
-ValueList           ::= Value ( WS* ListSeparator WS* Value )*
+DictContainer       ::= DictPair ( WS* ListSeparator WS* DictPair )*
+
+DictPair            ::= DictKey WS* PairSeparator WS* Value
+
+DictKey             ::= Identifier | String | Number
 
 Value               ::= Identifier | Number | String | "true" | "false" | "nil"
 
@@ -44,6 +48,8 @@ String              ::= '"' ( [^"\\] | "\\" . )* '"' | "'" ( [^'\\] | "\\" . )* 
 FieldSeparator      ::= ","
 
 ListSeparator       ::= ";"
+
+PairSeparator       ::= ":"
 
 WS                  ::= [ \t\n\r]+
 
