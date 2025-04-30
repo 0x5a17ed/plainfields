@@ -293,3 +293,34 @@ func TestParseOptions(t *testing.T) {
 		})
 	}
 }
+
+// TestParserEventInterface is a silly test that simply calls isParserEvent() on each
+// event type to improve test coverage and doesn't test any functionality.
+func TestParserEventInterface(t *testing.T) {
+	// Create instances of each event type.
+	events := []ParserEvent{
+		OrderedFieldStartEvent{Index: 42},
+		LabeledFieldStartEvent{Name: "foo"},
+		FieldEndEvent{},
+		ValueEvent{Type: TokenString, Value: "test"},
+		ListStartEvent{},
+		ListEndEvent{},
+		MapStartEvent{},
+		MapEndEvent{},
+		MapKeyEvent{Type: TokenIdentifier, Value: "key"},
+		ErrorEvent{Msg: "error", Pos: Position{Offset: 0, Column: 1}},
+	}
+
+	for _, event := range events {
+		// This doesn't do anything meaningful at runtime,
+		// but it ensures the method is called for test coverage.
+		event.isParserEvent()
+	}
+
+	t.Run("error interface", func(t *testing.T) {
+		var err error = ErrorEvent{Msg: "test error"}
+		if err.Error() != "Error at Col 0 (Offset 0): test error" {
+			t.Errorf("Expected error message to be 'test error', got '%s'", err.Error())
+		}
+	})
+}
