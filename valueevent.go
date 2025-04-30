@@ -13,10 +13,10 @@ func (e ValueEvent) IsNil() bool {
 // ToString returns the value as a string.
 func (e ValueEvent) ToString() (string, error) {
 	switch e.Type {
-	case TokenIdentifier:
-		return e.Value, nil
 	case TokenString:
 		return strconv.Unquote(e.Value)
+	case TokenIdentifier, TokenNumber:
+		return e.Value, nil
 	default:
 		return "", fmt.Errorf("cannot convert %s to string", e.Type)
 	}

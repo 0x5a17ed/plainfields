@@ -52,8 +52,8 @@ func TestValueEventConversions(t *testing.T) {
 	}{
 		{input: `field`, wantString: p("field")},
 		{input: `"hello"`, wantString: p("hello")},
-		{input: `-42`, wantInt: p(int64(-42)), wantFloat: p(float64(-42))},
-		{input: `23`, wantInt: p(int64(23)), wantUint: p(uint64(23)), wantFloat: p(float64(23))},
+		{input: `-42`, wantString: p("-42"), wantInt: p(int64(-42)), wantFloat: p(float64(-42))},
+		{input: `23`, wantString: p("23"), wantInt: p(int64(23)), wantUint: p(uint64(23)), wantFloat: p(float64(23))},
 		{input: `true`, wantBool: p(true)},
 		{input: `false`, wantBool: p(false)},
 		{input: `nil`, wantNil: true},
