@@ -9,7 +9,7 @@ AssignmentSection   ::= AssignmentField (WS* "," WS* AssignmentField)*
 
 AssignmentField     ::= ( "^" | "!" ) Identifier | Identifier ValueBinding
 
-ValueBinding        ::= WS* "=" WS* ( MapContent | ValueList )
+ValueBinding        ::= WS* "=" WS* ( MapContent | ValueList )?
 
 MapContent          ::= MapPair ( WS* ListSeparator WS* MapPair )*
 

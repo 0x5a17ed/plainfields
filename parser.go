@@ -3,6 +3,7 @@ package plainfields
 import (
 	"fmt"
 	"iter"
+	"slices"
 )
 
 func isValueToken(typ TokenType) bool {
@@ -130,6 +131,12 @@ func (p *Parser) peek() *Token {
 	return p.peeked
 }
 
+// isNext checks if the next token is of the expected type.
+func (p *Parser) isNext(typ ...TokenType) bool {
+	t := p.peek()
+	return t != nil && slices.Contains(typ, t.Typ)
+}
+
 // advance advances to the next token.
 func (p *Parser) advance() bool {
 	if p.peeked != nil {
@@ -191,9 +198,9 @@ func (p *Parser) parseField() bool {
 		identifier := p.current.Val
 
 		// Check if this is an assignment (identifier=value)
-		if t := p.peek(); t != nil && t.Typ == TokenAssign {
+		if p.isNext(TokenAssign) {
 			p.assignmentMode = true
-			p.advance() // Consume the = token
+			p.advance() // Consume the `=` token.
 			return p.parseAssignment(identifier)
 		}
 
@@ -251,6 +258,14 @@ func (p *Parser) parseFieldPrefix() bool {
 func (p *Parser) parseAssignment(name string) bool {
 	p.emit(LabeledFieldStartEvent{Name: name})
 
+	// If the next token is a field separator or EOF, it's an empty assignment.
+	if p.isNext(TokenFieldSeparator, TokenEOF) {
+		p.advance() // Consume the assignment token.
+
+		p.emit(FieldEndEvent{})
+		return true
+	}
+
 	// We're already past the assign token.
 	if !p.advance() || !p.parseValueList() {
 		return false
@@ -267,7 +282,7 @@ func (p *Parser) parseValueList() bool {
 	}
 
 	// Check if this is a map, the next token would be `:`.
-	if t := p.peek(); t != nil && t.Typ == TokenPairSeparator {
+	if p.isNext(TokenPairSeparator) {
 		// It's a map, parse as a map starting with the first key.
 		return p.parseMapFrom()
 	}

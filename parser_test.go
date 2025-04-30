@@ -62,6 +62,19 @@ func TestParser(t *testing.T) {
 			ListEndEvent{},
 			FieldEndEvent{},
 		}},
+
+		{"empty assignment single", "name=", []ParserEvent{
+			LabeledFieldStartEvent{"name"},
+			FieldEndEvent{},
+		}},
+
+		{"empty assignment multi", "a=,b=", []ParserEvent{
+			LabeledFieldStartEvent{"a"},
+			FieldEndEvent{},
+			LabeledFieldStartEvent{"b"},
+			FieldEndEvent{},
+		}},
+
 		{"field with prefix ^", "^enabled", []ParserEvent{
 			LabeledFieldStartEvent{"enabled"},
 			ListStartEvent{},
@@ -223,7 +236,6 @@ func TestParserErrors(t *testing.T) {
 		expectError string
 	}{
 		{"missing identifier after prefix", "^", "expected Identifier, got EOF"},
-		{"missing value after assignment", "name=", "expected value, got EOF"},
 		{"double field seperator", "a=1,,", "expected field prefix, identifier, or value, got FieldSeparator"},
 		{"invalid value", "name==", "expected value, got Assign"},
 		{"incomplete map", "settings=key:", "expected value, got EOF"},
