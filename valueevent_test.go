@@ -39,7 +39,7 @@ func testConversion[T comparable](t *testing.T, name string, want *T, fn func() 
 	}
 }
 
-func TestValueEventConversions(t *testing.T) {
+func TestValueEvent_Conversions(t *testing.T) {
 	tests := []struct {
 		input string
 
@@ -54,6 +54,18 @@ func TestValueEventConversions(t *testing.T) {
 		{input: `"hello"`, wantString: p("hello")},
 		{input: `-42`, wantString: p("-42"), wantInt: p(int64(-42)), wantFloat: p(float64(-42))},
 		{input: `23`, wantString: p("23"), wantInt: p(int64(23)), wantUint: p(uint64(23)), wantFloat: p(float64(23))},
+		{input: `3.14`, wantString: p("3.14"), wantFloat: p(float64(3.14))},
+
+		{input: "0x23", wantString: p("0x23"), wantInt: p(int64(0x23)), wantUint: p(uint64(0x23)), wantFloat: p(float64(0x23))},
+		{input: "0x23.1", wantString: p("0x23.1"), wantFloat: p(float64(35.0625))},
+		{input: "0x1p1", wantString: p("0x1p1"), wantFloat: p(float64(2))},
+		{input: "0x1.8p1", wantString: p("0x1.8p1"), wantFloat: p(float64(3.0))},
+		{input: "0x1.8p-1", wantString: p("0x1.8p-1"), wantFloat: p(float64(0.75))},
+		{input: "0x1.8p+1", wantString: p("0x1.8p+1"), wantFloat: p(float64(3.0))},
+
+		{input: "0o644", wantString: p("0o644"), wantInt: p(int64(420)), wantUint: p(uint64(420)), wantFloat: p(float64(420))},
+		{input: "0b01100101", wantString: p("0b01100101"), wantInt: p(int64(101)), wantUint: p(uint64(101)), wantFloat: p(float64(101))},
+
 		{input: `true`, wantBool: p(true)},
 		{input: `false`, wantBool: p(false)},
 		{input: `nil`, wantNil: true},
@@ -74,6 +86,29 @@ func TestValueEventConversions(t *testing.T) {
 
 			if got := ev.IsNil(); got != tt.wantNil {
 				t.Errorf("IsNil() = %t, want %t", got, tt.wantNil)
+			}
+		})
+	}
+}
+
+func TestValueEvent_FloatError(t *testing.T) {
+	tests := []struct {
+		input string
+	}{
+		{"0x1foo"},
+		{"0x1foo.bar"},
+		{"0x1.bar"},
+		{"0octal"},
+		{"0binary"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			ev := ValueEvent{Type: TokenNumber, Value: tt.input}
+
+			_, err := ev.ToFloat()
+			if err == nil {
+				t.Fatalf("ToFloat() error = %v", err)
 			}
 		})
 	}
