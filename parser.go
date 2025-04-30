@@ -58,8 +58,7 @@ type (
 
 	// MapKeyEvent represents a key in a map.
 	MapKeyEvent struct {
-		Type  TokenType
-		Value string
+		ValueEvent
 	}
 
 	// ErrorEvent represents an error during parsing.
@@ -327,7 +326,7 @@ func (p *Parser) parseMapFrom() bool {
 
 // parseKeyValuePair parses a key-value pair in a map.
 func (p *Parser) parseKeyValuePair() bool {
-	p.emit(MapKeyEvent{Type: p.current.Typ, Value: p.current.Val})
+	p.emit(MapKeyEvent{ValueEvent{Type: p.current.Typ, Value: p.current.Val}})
 
 	// Parse the colon between key and value.
 	if !p.advance() || !p.expect(TokenPairSeparator) {

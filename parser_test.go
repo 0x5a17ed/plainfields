@@ -106,9 +106,9 @@ func TestParser(t *testing.T) {
 		{"map values", "settings=host:localhost;port:8080", []ParserEvent{
 			LabeledFieldStartEvent{"settings"},
 			MapStartEvent{},
-			MapKeyEvent{TokenIdentifier, "host"},
+			MapKeyEvent{ValueEvent{TokenIdentifier, "host"}},
 			ValueEvent{TokenIdentifier, "localhost"},
-			MapKeyEvent{TokenIdentifier, "port"},
+			MapKeyEvent{ValueEvent{TokenIdentifier, "port"}},
 			ValueEvent{TokenNumber, "8080"},
 			MapEndEvent{},
 			FieldEndEvent{},
@@ -169,11 +169,11 @@ func TestParser(t *testing.T) {
 
 			LabeledFieldStartEvent{"settings"},
 			MapStartEvent{},
-			MapKeyEvent{TokenIdentifier, "theme"},
+			MapKeyEvent{ValueEvent{TokenIdentifier, "theme"}},
 			ValueEvent{TokenIdentifier, "dark"},
-			MapKeyEvent{TokenIdentifier, "fontSize"},
+			MapKeyEvent{ValueEvent{TokenIdentifier, "fontSize"}},
 			ValueEvent{TokenNumber, "14"},
-			MapKeyEvent{TokenIdentifier, "autoSave"},
+			MapKeyEvent{ValueEvent{TokenIdentifier, "autoSave"}},
 			ValueEvent{TokenTrue, "true"},
 			MapEndEvent{},
 			FieldEndEvent{},
@@ -280,7 +280,7 @@ func TestParserEventInterface(t *testing.T) {
 		ListEndEvent{},
 		MapStartEvent{},
 		MapEndEvent{},
-		MapKeyEvent{Type: TokenIdentifier, Value: "key"},
+		MapKeyEvent{ValueEvent{Type: TokenIdentifier, Value: "key"}},
 		ErrorEvent{Msg: "error", Pos: Position{Offset: 0, Column: 1}},
 	}
 
