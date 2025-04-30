@@ -6,11 +6,6 @@ import (
 	"slices"
 )
 
-func isValueToken(typ TokenType) bool {
-	return typ == TokenNumber || typ == TokenString ||
-		typ == TokenTrue || typ == TokenFalse || typ == TokenNil
-}
-
 // ParseOptions holds options for parsing.
 type ParseOptions struct {
 	// AllowPositional allows positional values without a key.
@@ -188,49 +183,37 @@ func (p *Parser) parseFieldList() {
 
 // parseField parses a single field
 func (p *Parser) parseField() bool {
-	if p.current.Typ == TokenFieldPrefix {
+	switch p.current.Typ {
+	case TokenFieldPrefix:
 		p.assignmentMode = true
 		return p.parseFieldPrefix()
-	}
 
-	// Handle identifier fields - could be positional value or assignment.
-	if p.current.Typ == TokenIdentifier {
-		identifier := p.current.Val
-
-		// Check if this is an assignment (identifier=value)
+	case TokenIdentifier:
+		// Check if this is a labeled field assignment.
 		if p.isNext(TokenAssign) {
 			p.assignmentMode = true
-			p.advance() // Consume the `=` token.
-			return p.parseAssignment(identifier)
+			return p.parseAssignment()
 		}
 
-		// This is a positional value.
-		if p.assignmentMode {
-			return p.errorf("positional value %q not allowed here", identifier)
-		}
+		// If it's not an assignment, treat it as a positional value.
+		fallthrough
 
-		p.emit(OrderedFieldStartEvent{p.fieldIndex})
-		p.fieldIndex++
-		p.emit(ValueEvent{Type: TokenIdentifier, Value: identifier})
-		p.emit(FieldEndEvent{})
-		return p.advance()
-	}
-
-	// Handle other value types as positional values.
-	if isValueToken(p.current.Typ) {
+	case TokenString, TokenNumber, TokenTrue, TokenFalse, TokenNil:
 		if p.assignmentMode {
 			return p.errorf("positional value not allowed here")
 		}
 
 		p.emit(OrderedFieldStartEvent{p.fieldIndex})
 		p.fieldIndex++
+		p.emit(ListStartEvent{})
 		p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
+		p.emit(ListEndEvent{})
 		p.emit(FieldEndEvent{})
 		return p.advance()
-	}
 
-	// If we reach here, we have an unexpected token.
-	return p.errorf("expected field prefix, identifier, or value, got %s", p.current.Typ)
+	default:
+		return p.errorf("expected field prefix, identifier, or value, got %s", p.current.Typ)
+	}
 }
 
 // parseFieldPrefix parses a field with a prefix (^ or !)
@@ -255,8 +238,10 @@ func (p *Parser) parseFieldPrefix() bool {
 }
 
 // parseAssignment handles key=value fields
-func (p *Parser) parseAssignment(name string) bool {
-	p.emit(LabeledFieldStartEvent{Name: name})
+func (p *Parser) parseAssignment() bool {
+	p.emit(LabeledFieldStartEvent{Name: p.current.Val})
+
+	p.advance() // Consume the `=` token.
 
 	// If the next token is a field separator or EOF, it's an empty assignment.
 	if p.isNext(TokenFieldSeparator, TokenEOF) {
