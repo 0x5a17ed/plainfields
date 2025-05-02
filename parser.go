@@ -8,14 +8,14 @@ import (
 
 // ParseOptions holds options for parsing.
 type ParseOptions struct {
-	// AllowPositional allows positional values without a key.
-	AllowPositional bool
+	// AllowOrdered allows ordered values without a key.
+	AllowOrdered bool
 }
 
 // ParseOptionsDefaults returns the default parsing options.
 func ParseOptionsDefaults() ParseOptions {
 	return ParseOptions{
-		AllowPositional: true,
+		AllowOrdered: true,
 	}
 }
 
@@ -25,7 +25,7 @@ type ParserEvent interface {
 }
 
 type (
-	// OrderedFieldStartEvent represents a positional field value assignment without a key.
+	// OrderedFieldStartEvent represents an ordered field value assignment without a key.
 	OrderedFieldStartEvent struct {
 		Index int
 	}
@@ -194,12 +194,12 @@ func (p *Parser) parseField() bool {
 			return p.parseAssignment()
 		}
 
-		// If it's not an assignment, treat it as a positional value.
+		// If it's not an assignment, treat it as an ordered value.
 		fallthrough
 
 	case TokenString, TokenNumber, TokenTrue, TokenFalse, TokenNil:
 		if p.assignmentMode {
-			return p.errorf("positional value not allowed here")
+			return p.errorf("ordered value not allowed here")
 		}
 
 		p.emit(OrderedFieldStartEvent{p.fieldIndex})
@@ -367,8 +367,8 @@ func ParseTokens(tokens iter.Seq[Token], opts ...ParseOptions) iter.Seq[ParserEv
 			next:  next,
 		}
 
-		// Set assignment mode if positional values are not allowed.
-		if !opt.AllowPositional {
+		// Set assignment mode if ordered values are not allowed.
+		if !opt.AllowOrdered {
 			p.assignmentMode = true
 		}
 

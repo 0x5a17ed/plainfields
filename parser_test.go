@@ -28,13 +28,13 @@ func TestParser(t *testing.T) {
 	}{
 		{"empty input", "", nil},
 
-		{"single positional value", "name", []ParserEvent{
+		{"single ordered value", "name", []ParserEvent{
 			OrderedFieldStartEvent{0},
 			ValueEvent{TokenIdentifier, "name"},
 			FieldEndEvent{},
 		}},
 
-		{"multiple positional value", `name,123,true,false,nil,"Hello World!"`, []ParserEvent{
+		{"multiple ordered value", `name,123,true,false,nil,"Hello World!"`, []ParserEvent{
 			OrderedFieldStartEvent{0},
 			ValueEvent{TokenIdentifier, "name"},
 			FieldEndEvent{},
@@ -216,7 +216,7 @@ func TestParserErrors(t *testing.T) {
 		{"mixing map and list semantics", "settings=key:value;value", "expected PairSeparator, got EOF"},
 		{"missing value after list separator", "a=1;", "expected value, got EOF"},
 		{"invalid map key", "settings=:value", "expected value, got PairSeparator"},
-		{"positional value after field", "name=john,123", "positional value not allowed here"},
+		{"ordered field after labeled field", "name=john,123", "ordered value not allowed here"},
 	}
 
 	for _, tt := range tests {
@@ -239,12 +239,12 @@ func TestParseOptions(t *testing.T) {
 		wantedError  string
 	}{
 		{
-			name: "disable positional values",
+			name: "disable ordered values",
 			options: ParseOptions{
-				AllowPositional: false,
+				AllowOrdered: false,
 			},
 			input:       "name,omitempty",
-			wantedError: `positional value not allowed here`,
+			wantedError: `ordered value not allowed here`,
 		},
 	}
 	for _, tc := range tt {
