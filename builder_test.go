@@ -28,70 +28,11 @@ func TestBuilder(t *testing.T) {
 				return b.Enable("enabled").
 					Disable("debug").
 					Labeled("name", "john").
-					List("tags", "dev", "prod").
-					Pairs("settings", "theme", "dark", "fontSize", 14)
+					LabeledList("tags", "dev", "prod").
+					LabeledDict("settings", "theme", "dark", "fontSize", 14)
 			},
 			options: BuilderDefaults(),
 			wanted:  "^enabled,!debug,name=john,tags=dev;prod,settings=theme:dark;fontSize:14",
-		},
-		{
-			name: "spaces after field separator",
-			builder: func(b *Builder) *Builder {
-				return b.Enable("feature").
-					Labeled("name", "john").
-					Labeled("age", 30)
-			},
-			options: BuilderOptions{
-				SpaceAfterFieldSeparator: true,
-			},
-			wanted: "^feature, name=john, age=30",
-		},
-		{
-			name: "spaces after list separator",
-			builder: func(b *Builder) *Builder {
-				return b.List("tags", "dev", "prod", "test")
-			},
-			options: BuilderOptions{
-				SpaceAfterListSeparator: true,
-			},
-			wanted: "tags=dev; prod; test",
-		},
-		{
-			name: "spaces after pairs separator",
-			builder: func(b *Builder) *Builder {
-				return b.Pairs("settings", "theme", "dark", "fontSize", 14)
-			},
-			options: BuilderOptions{
-				SpaceAfterPairsSeparator: true,
-			},
-			wanted: "settings=theme: dark;fontSize: 14",
-		},
-		{
-			name: "spaces around field assignment",
-			builder: func(b *Builder) *Builder {
-				return b.Labeled("name", "john").
-					Labeled("age", 30)
-			},
-			options: BuilderOptions{
-				SpaceAroundFieldAssignment: true,
-			},
-			wanted: "name = john,age = 30",
-		},
-		{
-			name: "all spacing options enabled",
-			builder: func(b *Builder) *Builder {
-				return b.Enable("feature").
-					Labeled("name", "john").
-					List("tags", "dev", "prod").
-					Pairs("settings", "theme", "dark", "fontSize", 14)
-			},
-			options: BuilderOptions{
-				SpaceAfterFieldSeparator:   true,
-				SpaceAfterListSeparator:    true,
-				SpaceAfterPairsSeparator:   true,
-				SpaceAroundFieldAssignment: true,
-			},
-			wanted: "^feature, name = john, tags = dev; prod, settings = theme: dark; fontSize: 14",
 		},
 		{
 			name: "boolean method usage",
@@ -117,8 +58,8 @@ func TestBuilder(t *testing.T) {
 		{
 			name: "empty list and pairs",
 			builder: func(b *Builder) *Builder {
-				return b.List("empty_list").
-					Pairs("empty_pairs")
+				return b.LabeledList("empty_list").
+					LabeledDict("empty_pairs")
 			},
 			options: BuilderDefaults(),
 			wanted:  "empty_list=,empty_pairs=",
@@ -126,18 +67,17 @@ func TestBuilder(t *testing.T) {
 		{
 			name: "mixed value types",
 			builder: func(b *Builder) *Builder {
-				return b.List("mixed", "string", 123, true, nil, 45.67)
+				return b.LabeledList("mixed", "string", 123, true, nil, 45.67)
 			},
 			options: BuilderDefaults(),
 			wanted:  "mixed=string;123;true;nil;45.67",
 		},
-
 		{
 			name: "ordered values",
 			builder: func(b *Builder) *Builder {
-				return b.Ordered("a").
-					Ordered("b").
-					Ordered("c").
+				return b.Value("a").
+					Value("b").
+					Value("c").
 					Labeled("d", 123).
 					Labeled("flag", true)
 			},
@@ -146,22 +86,104 @@ func TestBuilder(t *testing.T) {
 		},
 
 		{
-			name: "error: odd number of arguments to Pairs",
+			name: "always quote strings",
 			builder: func(b *Builder) *Builder {
-				return b.Pairs("settings", "key1", "value1", "key2") // Missing value
+				return b.Labeled("name", "john").
+					Labeled("age", 30).
+					Labeled("city", "New York").
+					Labeled("country", "USA")
+			},
+			options: BuilderOptions{
+				AlwaysQuoteStrings: true,
+			},
+			wanted: `name="john",age=30,city="New York",country="USA"`,
+		},
+		{
+			name: "spaces after field separator",
+			builder: func(b *Builder) *Builder {
+				return b.Enable("feature").
+					Labeled("name", "john").
+					Labeled("age", 30)
+			},
+			options: BuilderOptions{
+				SpaceAfterFieldSeparator: true,
+			},
+			wanted: "^feature, name=john, age=30",
+		},
+		{
+			name: "spaces after list separator",
+			builder: func(b *Builder) *Builder {
+				return b.LabeledList("tags", "dev", "prod", "test")
+			},
+			options: BuilderOptions{
+				SpaceAfterListSeparator: true,
+			},
+			wanted: "tags=dev; prod; test",
+		},
+		{
+			name: "spaces after pairs separator",
+			builder: func(b *Builder) *Builder {
+				return b.LabeledDict("settings", "theme", "dark", "fontSize", 14)
+			},
+			options: BuilderOptions{
+				SpaceAfterPairsSeparator: true,
+			},
+			wanted: "settings=theme: dark;fontSize: 14",
+		},
+		{
+			name: "spaces around field assignment",
+			builder: func(b *Builder) *Builder {
+				return b.Labeled("name", "john").
+					Labeled("age", 30)
+			},
+			options: BuilderOptions{
+				SpaceAroundFieldAssignment: true,
+			},
+			wanted: "name = john,age = 30",
+		},
+		{
+			name: "all spacing options enabled",
+			builder: func(b *Builder) *Builder {
+				return b.Enable("feature").
+					Labeled("name", "john").
+					LabeledList("tags", "dev", "prod").
+					LabeledDict("settings", "theme", "dark", "fontSize", 14)
+			},
+			options: BuilderOptions{
+				SpaceAfterFieldSeparator:   true,
+				SpaceAfterListSeparator:    true,
+				SpaceAfterPairsSeparator:   true,
+				SpaceAroundFieldAssignment: true,
+			},
+			wanted: "^feature, name = john, tags = dev; prod, settings = theme: dark; fontSize: 14",
+		},
+
+		{
+			name: "error: odd number of arguments to LabeledDict",
+			builder: func(b *Builder) *Builder {
+				return b.LabeledDict("settings", "key1", "value1", "key2") // Missing value
 			},
 			options: BuilderDefaults(),
 			wanted:  "",
-			wantErr: "odd number of arguments to Pairs",
+			wantErr: "odd number of arguments to LabeledDict",
 		},
 		{
 			name: "error: ordered value after labeled field",
 			builder: func(b *Builder) *Builder {
-				return b.Labeled("name", "john").Ordered(123) // Positional value after field
+				return b.Labeled("name", "john").Value(123) // Positional value after field
 			},
 			options: BuilderDefaults(),
 			wanted:  "",
 			wantErr: "ordered value after labeled field",
+		},
+		{
+			name: "error: invalid field name",
+			builder: func(b *Builder) *Builder {
+				return b.Labeled("invalid field", "value") // Invalid field name
+			},
+			options: BuilderDefaults(),
+			wanted:  "",
+			wantErr: `"invalid field": invalid field name`,
 		},
 	}
 

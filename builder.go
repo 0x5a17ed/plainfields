@@ -8,6 +8,7 @@ import (
 var (
 	ErrOddNumberOfPairs         = fmt.Errorf("odd number of pairs")
 	ErrOrderedFieldAfterLabeled = fmt.Errorf("ordered field after labeled field")
+	ErrInvalidFieldName         = fmt.Errorf("invalid field name")
 )
 
 // NeedsQuoting returns true if the given string needs quotes.
@@ -63,8 +64,9 @@ func BuilderDefaults() BuilderOptions {
 type Builder struct {
 	options    BuilderOptions
 	fields     []string
-	hasLabeled bool  // Track if we've seen any labeled fields.
-	err        error // Track the last error that occurred.
+	hasLabeled bool   // Track if we've seen any labeled fields.
+	nextLabel  string // Track the next label to be used.
+	err        error  // Track the last error that occurred.
 }
 
 // setError sets the last error that occurred.
@@ -75,13 +77,34 @@ func (b *Builder) setError(err error) *Builder {
 	return b
 }
 
-// add adds a new field to the builder.
-func (b *Builder) add(field string) *Builder {
+// addRaw adds a raw value to the builder.
+func (b *Builder) addRaw(value string) *Builder {
+	b.nextLabel = ""
+	b.fields = append(b.fields, value)
+	return b
+}
+
+// add adds a new value to the builder.
+func (b *Builder) add(value string) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.fields = append(b.fields, field)
-	return b
+
+	if b.nextLabel != "" {
+		separator := "="
+		if b.options.SpaceAroundFieldAssignment {
+			separator = " = "
+		}
+		value = fmt.Sprintf("%s%s%s", b.nextLabel, separator, value)
+
+		b.hasLabeled = true
+
+	} else if b.hasLabeled {
+		// If we have seen a labeled field, we cannot add an ordered value.
+		return b.setError(ErrOrderedFieldAfterLabeled)
+	}
+
+	return b.addRaw(value)
 }
 
 // Err returns the last error that occurred if any.
@@ -89,24 +112,61 @@ func (b *Builder) Err() error {
 	return b.err
 }
 
-// Ordered adds an ordered value to the builder.
-func (b *Builder) Ordered(value any) *Builder {
-	if b.hasLabeled {
-		return b.setError(ErrOrderedFieldAfterLabeled)
-	}
+// Value adds an ordered value to the builder.
+func (b *Builder) Value(value any) *Builder {
 	return b.add(b.options.formatValue(value))
+}
+
+// List adds a [name=]value1;value2;... field.
+func (b *Builder) List(values ...any) *Builder {
+	items := make([]string, len(values))
+	for i, v := range values {
+		items[i] = b.options.formatValue(v)
+	}
+
+	separator := ";"
+	if b.options.SpaceAfterListSeparator {
+		separator = "; "
+	}
+
+	return b.add(strings.Join(items, separator))
+}
+
+// Dict adds a [name=]key1:value1;key2:value2;... field.
+func (b *Builder) Dict(pairs ...any) *Builder {
+	if len(pairs)%2 != 0 {
+		return b.setError(ErrOddNumberOfPairs)
+	}
+
+	colon := ":"
+	if b.options.SpaceAfterPairsSeparator {
+		colon = ": "
+	}
+
+	items := make([]string, 0, len(pairs)/2)
+	for i := 0; i < len(pairs); i += 2 {
+		k := b.options.formatValue(pairs[i])
+		v := b.options.formatValue(pairs[i+1])
+		items = append(items, k+colon+v)
+	}
+
+	separator := ";"
+	if b.options.SpaceAfterListSeparator {
+		separator = "; "
+	}
+	return b.add(strings.Join(items, separator))
 }
 
 // Enable adds a boolean field with ^ prefix.
 func (b *Builder) Enable(name string) *Builder {
 	b.hasLabeled = true
-	return b.add("^" + name)
+	return b.addRaw("^" + name)
 }
 
 // Disable adds a boolean field with ! prefix.
 func (b *Builder) Disable(name string) *Builder {
 	b.hasLabeled = true
-	return b.add("!" + name)
+	return b.addRaw("!" + name)
 }
 
 // Boolean adds a boolean field with ^ or ! prefix.
@@ -117,69 +177,28 @@ func (b *Builder) Boolean(name string, value bool) *Builder {
 	return b.Disable(name)
 }
 
+// Label sets the name of the field for the next value.
+func (b *Builder) Label(name string) *Builder {
+	if NeedsQuoting(name) {
+		return b.setError(fmt.Errorf("%q: %w", name, ErrInvalidFieldName))
+	}
+	b.nextLabel = name
+	return b
+}
+
 // Labeled adds a name=value field
 func (b *Builder) Labeled(name string, value any) *Builder {
-	b.hasLabeled = true
-
-	equals := "="
-	if b.options.SpaceAroundFieldAssignment {
-		equals = " = "
-	}
-	return b.add(fmt.Sprintf("%s%s%v", name, equals, b.options.formatValue(value)))
+	return b.Label(name).Value(value)
 }
 
-// List adds a name=value1;value2;... field
-func (b *Builder) List(name string, values ...any) *Builder {
-	b.hasLabeled = true
-
-	equals := "="
-	if b.options.SpaceAroundFieldAssignment {
-		equals = " = "
-	}
-
-	parts := make([]string, len(values))
-	for i, v := range values {
-		parts[i] = b.options.formatValue(v)
-	}
-
-	separator := ";"
-	if b.options.SpaceAfterListSeparator {
-		separator = "; "
-	}
-
-	return b.add(fmt.Sprintf("%s%s%s", name, equals, strings.Join(parts, separator)))
+// LabeledList adds a [name=]value1;value2[;...] field
+func (b *Builder) LabeledList(name string, values ...any) *Builder {
+	return b.Label(name).List(values...)
 }
 
-// Pairs adds a name=key1:value1;key2:value2 field
-func (b *Builder) Pairs(name string, pairs ...any) *Builder {
-	b.hasLabeled = true
-
-	if len(pairs)%2 != 0 {
-		return b.setError(ErrOddNumberOfPairs)
-	}
-
-	equals := "="
-	if b.options.SpaceAroundFieldAssignment {
-		equals = " = "
-	}
-
-	colon := ":"
-	if b.options.SpaceAfterPairsSeparator {
-		colon = ": "
-	}
-
-	parts := make([]string, 0, len(pairs)/2)
-	for i := 0; i < len(pairs); i += 2 {
-		k := b.options.formatValue(pairs[i])
-		v := b.options.formatValue(pairs[i+1])
-		parts = append(parts, k+colon+v)
-	}
-
-	separator := ";"
-	if b.options.SpaceAfterListSeparator {
-		separator = "; "
-	}
-	return b.add(fmt.Sprintf("%s%s%s", name, equals, strings.Join(parts, separator)))
+// LabeledDict adds a [name=]key1:value1;key2:value2[;...] field
+func (b *Builder) LabeledDict(name string, pairs ...any) *Builder {
+	return b.Label(name).Dict(pairs...)
 }
 
 // String returns the built plainfields string
