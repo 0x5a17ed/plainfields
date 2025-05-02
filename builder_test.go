@@ -10,6 +10,7 @@ func TestBuilder(t *testing.T) {
 		builder func(b *Builder) *Builder
 		options BuilderOptions
 		wanted  string
+		wantErr string
 	}{
 		{
 			name: "basic fields with defaults",
@@ -143,6 +144,25 @@ func TestBuilder(t *testing.T) {
 			options: BuilderDefaults(),
 			wanted:  "a,b,c,d=123,flag=true",
 		},
+
+		{
+			name: "error: odd number of arguments to Pairs",
+			builder: func(b *Builder) *Builder {
+				return b.Pairs("settings", "key1", "value1", "key2") // Missing value
+			},
+			options: BuilderDefaults(),
+			wanted:  "",
+			wantErr: "odd number of arguments to Pairs",
+		},
+		{
+			name: "error: ordered value after labeled field",
+			builder: func(b *Builder) *Builder {
+				return b.Labeled("name", "john").Ordered(123) // Positional value after field
+			},
+			options: BuilderDefaults(),
+			wanted:  "",
+			wantErr: "ordered value after labeled field",
+		},
 	}
 
 	for _, tt := range tests {
@@ -152,6 +172,10 @@ func TestBuilder(t *testing.T) {
 
 			if result != tt.wanted {
 				t.Errorf("expected: %q, got: %q", tt.wanted, result)
+			}
+
+			if err := builder.Err(); (err != nil) != (tt.wantErr != "") {
+				t.Errorf("expected error: %v, got: %v", tt.wantErr, err)
 			}
 		})
 	}
@@ -186,28 +210,4 @@ func TestNeedsQuoting(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Test that the builder panics with odd number of arguments to Pairs
-func TestBuilder_Panics(t *testing.T) {
-	t.Run("odd number of arguments", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("expected panic with odd number of pair arguments, but no panic occurred")
-			}
-		}()
-
-		NewBuilder().Pairs("settings", "key1", "value1", "key2") // Missing value
-	})
-
-	t.Run("ordered value after field", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("expected panic with ordered value after labeled field, but no panic occurred")
-			}
-		}()
-
-		NewBuilder().Labeled("name", "john").Ordered(123) // Positional value after field
-	})
-
 }
