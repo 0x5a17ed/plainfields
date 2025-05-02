@@ -214,14 +214,14 @@ func (b *Builder) String() string {
 	return strings.Join(b.fields, separator)
 }
 
-// NewBuilder creates a new plainfields builder with default options
-func NewBuilder() *Builder {
-	return NewBuilderWithOptions(BuilderDefaults())
-}
+// NewBuilder creates a new plainfields builder.
+func NewBuilder(opts ...BuilderOptions) *Builder {
+	opt := BuilderDefaults()
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 
-// NewBuilderWithOptions creates a new builder with the specified options
-func NewBuilderWithOptions(options BuilderOptions) *Builder {
 	return &Builder{
-		options: options,
+		options: opt,
 	}
 }

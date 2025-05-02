@@ -8,7 +8,7 @@ func TestBuilder(t *testing.T) {
 	tests := []struct {
 		name    string
 		builder func(b *Builder) *Builder
-		options BuilderOptions
+		options *BuilderOptions
 		wanted  string
 		wantErr string
 	}{
@@ -19,8 +19,7 @@ func TestBuilder(t *testing.T) {
 					Labeled("name", "john").
 					Labeled("age", 30)
 			},
-			options: BuilderDefaults(),
-			wanted:  "^feature,name=john,age=30",
+			wanted: "^feature,name=john,age=30",
 		},
 		{
 			name: "all field types with defaults",
@@ -31,8 +30,7 @@ func TestBuilder(t *testing.T) {
 					LabeledList("tags", "dev", "prod").
 					LabeledDict("settings", "theme", "dark", "fontSize", 14)
 			},
-			options: BuilderDefaults(),
-			wanted:  "^enabled,!debug,name=john,tags=dev;prod,settings=theme:dark;fontSize:14",
+			wanted: "^enabled,!debug,name=john,tags=dev;prod,settings=theme:dark;fontSize:14",
 		},
 		{
 			name: "boolean method usage",
@@ -40,8 +38,7 @@ func TestBuilder(t *testing.T) {
 				return b.Boolean("feature1", true).
 					Boolean("feature2", false)
 			},
-			options: BuilderDefaults(),
-			wanted:  "^feature1,!feature2",
+			wanted: "^feature1,!feature2",
 		},
 		{
 			name: "string escaping",
@@ -52,8 +49,7 @@ func TestBuilder(t *testing.T) {
 					Labeled("empty", "").
 					Labeled("keyword", "true")
 			},
-			options: BuilderDefaults(),
-			wanted:  `simple=abc,spaces="hello world",special="a:b;c,d",empty="",keyword="true"`,
+			wanted: `simple=abc,spaces="hello world",special="a:b;c,d",empty="",keyword="true"`,
 		},
 		{
 			name: "empty list and pairs",
@@ -61,16 +57,14 @@ func TestBuilder(t *testing.T) {
 				return b.LabeledList("empty_list").
 					LabeledDict("empty_pairs")
 			},
-			options: BuilderDefaults(),
-			wanted:  "empty_list=,empty_pairs=",
+			wanted: "empty_list=,empty_pairs=",
 		},
 		{
 			name: "mixed value types",
 			builder: func(b *Builder) *Builder {
 				return b.LabeledList("mixed", "string", 123, true, nil, 45.67)
 			},
-			options: BuilderDefaults(),
-			wanted:  "mixed=string;123;true;nil;45.67",
+			wanted: "mixed=string;123;true;nil;45.67",
 		},
 		{
 			name: "ordered values",
@@ -81,8 +75,7 @@ func TestBuilder(t *testing.T) {
 					Labeled("d", 123).
 					Labeled("flag", true)
 			},
-			options: BuilderDefaults(),
-			wanted:  "a,b,c,d=123,flag=true",
+			wanted: "a,b,c,d=123,flag=true",
 		},
 
 		{
@@ -93,7 +86,7 @@ func TestBuilder(t *testing.T) {
 					Labeled("city", "New York").
 					Labeled("country", "USA")
 			},
-			options: BuilderOptions{
+			options: &BuilderOptions{
 				AlwaysQuoteStrings: true,
 			},
 			wanted: `name="john",age=30,city="New York",country="USA"`,
@@ -105,7 +98,7 @@ func TestBuilder(t *testing.T) {
 					Labeled("name", "john").
 					Labeled("age", 30)
 			},
-			options: BuilderOptions{
+			options: &BuilderOptions{
 				SpaceAfterFieldSeparator: true,
 			},
 			wanted: "^feature, name=john, age=30",
@@ -115,7 +108,7 @@ func TestBuilder(t *testing.T) {
 			builder: func(b *Builder) *Builder {
 				return b.LabeledList("tags", "dev", "prod", "test")
 			},
-			options: BuilderOptions{
+			options: &BuilderOptions{
 				SpaceAfterListSeparator: true,
 			},
 			wanted: "tags=dev; prod; test",
@@ -125,7 +118,7 @@ func TestBuilder(t *testing.T) {
 			builder: func(b *Builder) *Builder {
 				return b.LabeledDict("settings", "theme", "dark", "fontSize", 14)
 			},
-			options: BuilderOptions{
+			options: &BuilderOptions{
 				SpaceAfterPairsSeparator: true,
 			},
 			wanted: "settings=theme: dark;fontSize: 14",
@@ -136,7 +129,7 @@ func TestBuilder(t *testing.T) {
 				return b.Labeled("name", "john").
 					Labeled("age", 30)
 			},
-			options: BuilderOptions{
+			options: &BuilderOptions{
 				SpaceAroundFieldAssignment: true,
 			},
 			wanted: "name = john,age = 30",
@@ -149,7 +142,7 @@ func TestBuilder(t *testing.T) {
 					LabeledList("tags", "dev", "prod").
 					LabeledDict("settings", "theme", "dark", "fontSize", 14)
 			},
-			options: BuilderOptions{
+			options: &BuilderOptions{
 				SpaceAfterFieldSeparator:   true,
 				SpaceAfterListSeparator:    true,
 				SpaceAfterPairsSeparator:   true,
@@ -163,7 +156,6 @@ func TestBuilder(t *testing.T) {
 			builder: func(b *Builder) *Builder {
 				return b.LabeledDict("settings", "key1", "value1", "key2") // Missing value
 			},
-			options: BuilderDefaults(),
 			wanted:  "",
 			wantErr: "odd number of arguments to LabeledDict",
 		},
@@ -172,7 +164,6 @@ func TestBuilder(t *testing.T) {
 			builder: func(b *Builder) *Builder {
 				return b.Labeled("name", "john").Value(123) // Positional value after field
 			},
-			options: BuilderDefaults(),
 			wanted:  "",
 			wantErr: "ordered value after labeled field",
 		},
@@ -181,7 +172,6 @@ func TestBuilder(t *testing.T) {
 			builder: func(b *Builder) *Builder {
 				return b.Labeled("invalid field", "value") // Invalid field name
 			},
-			options: BuilderDefaults(),
 			wanted:  "",
 			wantErr: `"invalid field": invalid field name`,
 		},
@@ -189,7 +179,12 @@ func TestBuilder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewBuilderWithOptions(tt.options)
+			var builder *Builder
+			if tt.options != nil {
+				builder = NewBuilder(*tt.options)
+			} else {
+				builder = NewBuilder()
+			}
 			result := tt.builder(builder).String()
 
 			if result != tt.wanted {

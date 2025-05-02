@@ -12,8 +12,8 @@ type ParseOptions struct {
 	AllowOrdered bool
 }
 
-// ParseOptionsDefaults returns the default parsing options.
-func ParseOptionsDefaults() ParseOptions {
+// ParseDefaults returns the default parsing options.
+func ParseDefaults() ParseOptions {
 	return ParseOptions{
 		AllowOrdered: true,
 	}
@@ -353,7 +353,7 @@ func (p *Parser) parseValue() bool {
 
 // ParseTokens returns an iterator that yields parse events
 func ParseTokens(tokens iter.Seq[Token], opts ...ParseOptions) iter.Seq[ParserEvent] {
-	opt := ParseOptionsDefaults()
+	opt := ParseDefaults()
 	if len(opts) > 0 {
 		opt = opts[0]
 	}
