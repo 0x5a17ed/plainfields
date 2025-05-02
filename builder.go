@@ -51,17 +51,17 @@ func BuilderDefaults() BuilderOptions {
 	}
 }
 
-// Builder constructs plainfields format strings
+// Builder constructs plainfields format strings.
 type Builder struct {
-	options  BuilderOptions
-	fields   []string
-	hasNamed bool // Track if we've seen any named fields
+	options    BuilderOptions
+	fields     []string
+	hasLabeled bool // Track if we've seen any labeled fields.
 }
 
-// Value adds a positional value to the builder
-func (b *Builder) Value(value any) *Builder {
-	if b.hasNamed {
-		panic("positional values must come before named fields")
+// Ordered adds an ordered value to the builder.
+func (b *Builder) Ordered(value any) *Builder {
+	if b.hasLabeled {
+		panic("ordered values must come before labeled fields")
 	}
 
 	b.fields = append(b.fields, formatValue(value))
@@ -70,14 +70,14 @@ func (b *Builder) Value(value any) *Builder {
 
 // Enable adds a boolean field with ^ prefix.
 func (b *Builder) Enable(name string) *Builder {
-	b.hasNamed = true
+	b.hasLabeled = true
 	b.fields = append(b.fields, "^"+name)
 	return b
 }
 
 // Disable adds a boolean field with ! prefix.
 func (b *Builder) Disable(name string) *Builder {
-	b.hasNamed = true
+	b.hasLabeled = true
 	b.fields = append(b.fields, "!"+name)
 	return b
 }
@@ -90,9 +90,9 @@ func (b *Builder) Boolean(name string, value bool) *Builder {
 	return b.Disable(name)
 }
 
-// Field adds a name=value field
-func (b *Builder) Field(name string, value any) *Builder {
-	b.hasNamed = true
+// Labeled adds a name=value field
+func (b *Builder) Labeled(name string, value any) *Builder {
+	b.hasLabeled = true
 
 	equals := "="
 	if b.options.SpaceAroundFieldAssignment {
@@ -105,7 +105,7 @@ func (b *Builder) Field(name string, value any) *Builder {
 
 // List adds a name=value1;value2;... field
 func (b *Builder) List(name string, values ...any) *Builder {
-	b.hasNamed = true
+	b.hasLabeled = true
 
 	equals := "="
 	if b.options.SpaceAroundFieldAssignment {
@@ -129,7 +129,7 @@ func (b *Builder) List(name string, values ...any) *Builder {
 
 // Pairs adds a name=key1:value1;key2:value2 field
 func (b *Builder) Pairs(name string, pairs ...any) *Builder {
-	b.hasNamed = true
+	b.hasLabeled = true
 
 	if len(pairs)%2 != 0 {
 		panic("Pairs requires even number of arguments")

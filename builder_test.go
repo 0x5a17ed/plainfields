@@ -15,8 +15,8 @@ func TestBuilder(t *testing.T) {
 			name: "basic fields with defaults",
 			builder: func(b *Builder) *Builder {
 				return b.Enable("feature").
-					Field("name", "john").
-					Field("age", 30)
+					Labeled("name", "john").
+					Labeled("age", 30)
 			},
 			options: BuilderDefaults(),
 			wanted:  "^feature,name=john,age=30",
@@ -26,7 +26,7 @@ func TestBuilder(t *testing.T) {
 			builder: func(b *Builder) *Builder {
 				return b.Enable("enabled").
 					Disable("debug").
-					Field("name", "john").
+					Labeled("name", "john").
 					List("tags", "dev", "prod").
 					Pairs("settings", "theme", "dark", "fontSize", 14)
 			},
@@ -37,8 +37,8 @@ func TestBuilder(t *testing.T) {
 			name: "spaces after field separator",
 			builder: func(b *Builder) *Builder {
 				return b.Enable("feature").
-					Field("name", "john").
-					Field("age", 30)
+					Labeled("name", "john").
+					Labeled("age", 30)
 			},
 			options: BuilderOptions{
 				SpaceAfterFieldSeparator: true,
@@ -68,8 +68,8 @@ func TestBuilder(t *testing.T) {
 		{
 			name: "spaces around field assignment",
 			builder: func(b *Builder) *Builder {
-				return b.Field("name", "john").
-					Field("age", 30)
+				return b.Labeled("name", "john").
+					Labeled("age", 30)
 			},
 			options: BuilderOptions{
 				SpaceAroundFieldAssignment: true,
@@ -80,7 +80,7 @@ func TestBuilder(t *testing.T) {
 			name: "all spacing options enabled",
 			builder: func(b *Builder) *Builder {
 				return b.Enable("feature").
-					Field("name", "john").
+					Labeled("name", "john").
 					List("tags", "dev", "prod").
 					Pairs("settings", "theme", "dark", "fontSize", 14)
 			},
@@ -104,11 +104,11 @@ func TestBuilder(t *testing.T) {
 		{
 			name: "string escaping",
 			builder: func(b *Builder) *Builder {
-				return b.Field("simple", "abc").
-					Field("spaces", "hello world").
-					Field("special", "a:b;c,d").
-					Field("empty", "").
-					Field("keyword", "true")
+				return b.Labeled("simple", "abc").
+					Labeled("spaces", "hello world").
+					Labeled("special", "a:b;c,d").
+					Labeled("empty", "").
+					Labeled("keyword", "true")
 			},
 			options: BuilderDefaults(),
 			wanted:  `simple=abc,spaces="hello world",special="a:b;c,d",empty="",keyword="true"`,
@@ -132,13 +132,13 @@ func TestBuilder(t *testing.T) {
 		},
 
 		{
-			name: "positional values",
+			name: "ordered values",
 			builder: func(b *Builder) *Builder {
-				return b.Value("a").
-					Value("b").
-					Value("c").
-					Field("d", 123).
-					Field("flag", true)
+				return b.Ordered("a").
+					Ordered("b").
+					Ordered("c").
+					Labeled("d", 123).
+					Labeled("flag", true)
 			},
 			options: BuilderDefaults(),
 			wanted:  "a,b,c,d=123,flag=true",
@@ -200,14 +200,14 @@ func TestBuilder_Panics(t *testing.T) {
 		NewBuilder().Pairs("settings", "key1", "value1", "key2") // Missing value
 	})
 
-	t.Run("positional value after field", func(t *testing.T) {
+	t.Run("ordered value after field", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
-				t.Errorf("expected panic with positional value after field, but no panic occurred")
+				t.Errorf("expected panic with ordered value after labeled field, but no panic occurred")
 			}
 		}()
 
-		NewBuilder().Field("name", "john").Value(123) // Positional value after field
+		NewBuilder().Labeled("name", "john").Ordered(123) // Positional value after field
 	})
 
 }
