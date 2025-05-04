@@ -12,7 +12,7 @@ func TestTokenTypeString(t *testing.T) {
 	}{
 		{TokenError, "Error"},
 		{TokenEOF, "EOF"},
-		{TokenFieldPrefix, "FieldPrefix"},
+		{TokenBooleanPrefix, "BooleanPrefix"},
 		{TokenIdentifier, "Identifier"},
 		{TokenAssign, "Assign"},
 		{TokenNumber, "Number"},

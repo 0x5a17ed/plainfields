@@ -143,8 +143,8 @@ func (p *Parser) advance() bool {
 	return p.hasToken
 }
 
-// expect checks if the current token is of the expected type
-func (p *Parser) expect(typ TokenType) bool {
+// isToken checks if the current token is of the expected type
+func (p *Parser) isToken(typ TokenType) bool {
 	if !p.hasToken {
 		return p.errorf("unexpected end of input")
 	}
@@ -206,9 +206,9 @@ func (p *Parser) parseFieldList() {
 // parseField parses a single field
 func (p *Parser) parseField() bool {
 	switch p.current.Typ {
-	case TokenFieldPrefix:
+	case TokenBooleanPrefix:
 		p.updateState(labeledSection)
-		return p.parseFieldPrefix()
+		return p.parseBooleanPrefix()
 
 	case TokenIdentifier:
 		// Check if this is a labeled field assignment.
@@ -239,16 +239,15 @@ func (p *Parser) parseField() bool {
 	}
 }
 
-// parseFieldPrefix parses a field with a prefix (^ or !)
-func (p *Parser) parseFieldPrefix() bool {
+// parseBooleanPrefix parses a field with a prefix (^ or !)
+func (p *Parser) parseBooleanPrefix() bool {
 	prefix := p.current.Val // '^' or '!'
-	if !p.advance() || !p.expect(TokenIdentifier) {
+	if !p.advance() || !p.isToken(TokenIdentifier) {
 		return false
 	}
-	name := p.current.Val
 
 	// Emit as a boolean assignment.
-	p.emit(MapKeyEvent{Value{IdentifierValue, name}})
+	p.emit(MapKeyEvent{Value: p.toValue()})
 	if prefix == "^" {
 		p.emit(ValueEvent{Value{BooleanValue, "true"}})
 	} else { // `!`
@@ -281,18 +280,23 @@ func (p *Parser) parseAssignment() bool {
 
 // parseValueContent parses a list of values, detecting if it's a map.
 func (p *Parser) parseValueContent() bool {
-	if !p.parseValue() {
+	// Handle boolean prefix notation.
+	if p.current.Typ == TokenBooleanPrefix {
+		return p.parseDictValue()
+	}
+
+	if !p.isValue() {
 		return false
 	}
 
 	switch {
 	case p.isNext(TokenPairSeparator):
 		// It's a map, parse as a map starting with the first key.
-		return p.parseMapFrom()
+		return p.parseDictValue()
 
 	case p.isNext(TokenListSeparator):
 		// It's a list, parse as a list starting with the first value.
-		return p.parseListFrom()
+		return p.parseListValue()
 
 	default:
 		// If we don't have a list or map, just emit a single value.
@@ -302,8 +306,8 @@ func (p *Parser) parseValueContent() bool {
 	}
 }
 
-// parseListFrom parses a list starting from a known first value.
-func (p *Parser) parseListFrom() bool {
+// parseListValue parses a list starting from a known first value.
+func (p *Parser) parseListValue() bool {
 	// It's a regular list.
 	p.emit(ListStartEvent{})
 	p.emit(ValueEvent{Value: p.toValue()})
@@ -312,7 +316,7 @@ func (p *Parser) parseListFrom() bool {
 	p.advance()
 
 	for p.hasToken && p.current.Typ == TokenListSeparator {
-		if !p.advance() || !p.parseValue() {
+		if !p.advance() || !p.isValue() {
 			return false
 		}
 		p.emit(ValueEvent{Value: p.toValue()})
@@ -325,21 +329,17 @@ func (p *Parser) parseListFrom() bool {
 	return true
 }
 
-// parseMapFrom parses a map starting from a known first key.
-func (p *Parser) parseMapFrom() bool {
+// parseDictValue parses a map starting from a known first key.
+func (p *Parser) parseDictValue() bool {
 	p.emit(MapStartEvent{})
 
-	if !p.parseKeyValuePair() {
+	if !p.parseDictEntry() {
 		return false
 	}
 
 	// ParseTokens the remaining key-value pairs.
-	for p.advance() && p.current.Typ == TokenListSeparator {
-		if !p.advance() || !p.parseValue() {
-			return false
-		}
-
-		if !p.parseKeyValuePair() {
+	for p.current.Typ == TokenListSeparator {
+		if !p.advance() || !p.parseDictEntry() {
 			return false
 		}
 	}
@@ -348,25 +348,38 @@ func (p *Parser) parseMapFrom() bool {
 	return true
 }
 
-// parseKeyValuePair parses a key-value pair in a map.
-func (p *Parser) parseKeyValuePair() bool {
+// parseDictEntry parses a single key-value pair in a map.
+func (p *Parser) parseDictEntry() bool {
+	if p.current.Typ == TokenBooleanPrefix {
+		return p.parseBooleanPrefix()
+	}
+
+	return p.parseDictPair()
+}
+
+// parseDictPair parses a key-value pair in a map.
+func (p *Parser) parseDictPair() bool {
+	// The current parser position should be a key.
+	if !p.isValue() {
+		return false
+	}
 	p.emit(MapKeyEvent{Value: p.toValue()})
 
 	// Parse the colon between key and value.
-	if !p.advance() || !p.expect(TokenPairSeparator) {
+	if !p.advance() || !p.isToken(TokenPairSeparator) {
 		return false
 	}
 
 	// Parse the value.
-	if !p.advance() || !p.parseValue() {
+	if !p.advance() || !p.isValue() {
 		return false
 	}
 
-	return p.emit(ValueEvent{Value: p.toValue()})
+	return p.emit(ValueEvent{Value: p.toValue()}) && p.advance()
 }
 
-// parseValue parses a single value
-func (p *Parser) parseValue() bool {
+// isValue parses a single value
+func (p *Parser) isValue() bool {
 	switch p.current.Typ {
 	case TokenIdentifier, TokenNumber, TokenString, TokenTrue, TokenFalse, TokenNil:
 		return true

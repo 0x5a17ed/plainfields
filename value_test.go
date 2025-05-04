@@ -27,7 +27,7 @@ func p[T any](v T) *T {
 // testConversion is a generic helper for testing value conversions
 func testConversion[T comparable](t *testing.T, name string, want *T, fn func() (T, error)) {
 	if got, err := fn(); want != nil {
-		// We expect success with a specific value
+		// We isToken success with a specific value
 		if err != nil {
 			t.Fatalf("%s() error = %v", name, err)
 		}

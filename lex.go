@@ -100,7 +100,7 @@ func lexTop(l *lexer) stateFn {
 
 	case ch == '^' || ch == '!':
 		l.next()
-		l.emit(TokenFieldPrefix)
+		l.emit(TokenBooleanPrefix)
 		return lexTop
 	case ch == '=':
 		l.next()

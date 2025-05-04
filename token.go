@@ -11,7 +11,7 @@ const (
 	TokenError TokenType = iota // Error occurred; value is the text of error.
 	TokenEOF                    // End of the file reached.
 
-	TokenFieldPrefix    // `^` or `!`
+	TokenBooleanPrefix  // `^` or `!`
 	TokenIdentifier     // `abc-123`
 	TokenAssign         // `=`
 	TokenNumber         // `123`, `0xFF`, `0b11`, etc.
@@ -30,8 +30,8 @@ func (t TokenType) String() string {
 		return "Error"
 	case TokenEOF:
 		return "EOF"
-	case TokenFieldPrefix:
-		return "FieldPrefix"
+	case TokenBooleanPrefix:
+		return "BooleanPrefix"
 	case TokenIdentifier:
 		return "Identifier"
 	case TokenAssign:

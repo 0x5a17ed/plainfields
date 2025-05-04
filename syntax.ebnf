@@ -1,4 +1,6 @@
 // Top-level EBNF grammar for the plainfields syntax.
+
+// Note: Ordered values MUST come before labeled values.
 FieldList           ::= WS* (OrderedSection WS* ("," WS* LabeledSection)? | LabeledSection) WS*
 
 OrderedSection      ::= OrderedValue (WS* "," WS* OrderedValue)*
@@ -7,21 +9,25 @@ OrderedValue        ::= Value
 
 LabeledSection      ::= AssignmentField (WS* "," WS* AssignmentField)*
 
-AssignmentField     ::= ( "^" | "!" ) Identifier | Identifier ValueBinding
+AssignmentField     ::= PrefixedIdentifier | Identifier ValueBinding
 
 ValueBinding        ::= WS* "=" WS* ValueContent?
 
-ValueContent        ::= DictContainer | ListContainer | SingleValue
+ValueContent        ::= DictValue | ListValue | SingleValue
 
 SingleValue         ::= Value
 
-ListContainer       ::= Value WS* ListSeparator WS* ( Value ( WS* ListSeparator WS* Value )* )?
+ListValue           ::= Value WS* ListSeparator WS* ( Value ( WS* ListSeparator WS* Value )* )?
 
-DictContainer       ::= DictPair ( WS* ListSeparator WS* DictPair )*
+DictValue           ::= DictEntry ( WS* ListSeparator WS* DictEntry )*
+
+DictEntry           ::= PrefixedIdentifier | DictPair
 
 DictPair            ::= DictKey WS* PairSeparator WS* Value
 
 DictKey             ::= Identifier | String | Number
+
+PrefixedIdentifier  ::= ( "^" | "!" ) Identifier
 
 Value               ::= Identifier | Number | String | "true" | "false" | "nil"
 

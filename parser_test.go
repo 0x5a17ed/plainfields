@@ -51,7 +51,14 @@ func TestParser(t *testing.T) {
 			ListEndEvent{},
 		}},
 
-		{"simple field", "name=john", []ParserEvent{
+		{"ordered zero value", ",,", []ParserEvent{
+			ListStartEvent{},
+			ValueEvent{Value{ZeroValue, ""}},
+			ValueEvent{Value{ZeroValue, ""}},
+			ListEndEvent{},
+		}},
+
+		{"simple labeled field", "name=john", []ParserEvent{
 			MapStartEvent{},
 			MapKeyEvent{Value{IdentifierValue, "name"}},
 			ValueEvent{Value{IdentifierValue, "john"}},
@@ -124,6 +131,17 @@ func TestParser(t *testing.T) {
 			ValueEvent{Value{IdentifierValue, "localhost"}},
 			MapKeyEvent{Value{IdentifierValue, "port"}},
 			ValueEvent{Value{NumberValue, "8080"}},
+			MapEndEvent{},
+			MapEndEvent{},
+		}},
+		{"map with boolean prefix", "features=^enabled;!disabled", []ParserEvent{
+			MapStartEvent{},
+			MapKeyEvent{Value{IdentifierValue, "features"}},
+			MapStartEvent{},
+			MapKeyEvent{Value{IdentifierValue, "enabled"}},
+			ValueEvent{Value{BooleanValue, "true"}},
+			MapKeyEvent{Value{IdentifierValue, "disabled"}},
+			ValueEvent{Value{BooleanValue, "false"}},
 			MapEndEvent{},
 			MapEndEvent{},
 		}},
@@ -239,6 +257,9 @@ func TestParserErrors(t *testing.T) {
 		{"missing value after list separator", "a=1;", "expected value, got EOF"},
 		{"invalid map key", "settings=:value", "expected value, got PairSeparator"},
 		{"ordered field after labeled field", "name=john,123", "ordered value not allowed here"},
+		{"invalid boolean prefix", "^=true", "expected Identifier, got Assign"},
+		{"invalid boolean prefix with space", "^ =true", "expected Identifier, got Assign"},
+		{"invalid boolean prefix with extra token", "^enabled,=true", "expected field prefix, identifier, or value, got Assign"},
 	}
 
 	for _, tt := range tests {

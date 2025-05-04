@@ -37,12 +37,12 @@ func TestLex(t *testing.T) {
 			{Typ: TokenEOF, Pos: Position{Offset: 9, Column: 10}, Val: ""},
 		}},
 		{"field prefix ^", "^abc", []Token{
-			{Typ: TokenFieldPrefix, Pos: Position{Offset: 0, Column: 1}, Val: "^"},
+			{Typ: TokenBooleanPrefix, Pos: Position{Offset: 0, Column: 1}, Val: "^"},
 			{Typ: TokenIdentifier, Pos: Position{Offset: 1, Column: 2}, Val: "abc"},
 			{Typ: TokenEOF, Pos: Position{Offset: 4, Column: 5}, Val: ""},
 		}},
 		{"field prefix !", "!xyz", []Token{
-			{Typ: TokenFieldPrefix, Pos: Position{Offset: 0, Column: 1}, Val: "!"},
+			{Typ: TokenBooleanPrefix, Pos: Position{Offset: 0, Column: 1}, Val: "!"},
 			{Typ: TokenIdentifier, Pos: Position{Offset: 1, Column: 2}, Val: "xyz"},
 			{Typ: TokenEOF, Pos: Position{Offset: 4, Column: 5}, Val: ""},
 		}},
