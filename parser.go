@@ -40,8 +40,7 @@ type (
 
 	// ValueEvent represents a value in the field.
 	ValueEvent struct {
-		Type  TokenType
-		Value string
+		Value
 	}
 
 	// ListStartEvent represents the beginning of a value list.
@@ -58,7 +57,7 @@ type (
 
 	// MapKeyEvent represents a key in a map.
 	MapKeyEvent struct {
-		ValueEvent
+		Value
 	}
 
 	// ErrorEvent represents an error during parsing.
@@ -162,6 +161,11 @@ func (p *Parser) expect(typ TokenType) bool {
 	return true
 }
 
+// toValue converts the current token to a Value.
+func (p *Parser) toValue() Value {
+	return Value{Type: p.current.Typ, Value: p.current.Val}
+}
+
 // parseFieldList parses the top-level field list
 func (p *Parser) parseFieldList() {
 	for !p.done && p.advance() {
@@ -204,7 +208,7 @@ func (p *Parser) parseField() bool {
 
 		p.emit(OrderedFieldStartEvent{p.fieldIndex})
 		p.fieldIndex++
-		p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
+		p.emit(ValueEvent{Value: p.toValue()})
 		p.emit(FieldEndEvent{})
 		return p.advance()
 
@@ -224,9 +228,9 @@ func (p *Parser) parseFieldPrefix() bool {
 	// Emit as a boolean assignment.
 	p.emit(LabeledFieldStartEvent{name})
 	if prefix == "^" {
-		p.emit(ValueEvent{TokenTrue, "true"})
+		p.emit(ValueEvent{Value{TokenTrue, "true"}})
 	} else { // `!`
-		p.emit(ValueEvent{TokenFalse, "false"})
+		p.emit(ValueEvent{Value{TokenFalse, "false"}})
 	}
 	p.emit(FieldEndEvent{})
 	return p.advance()
@@ -272,7 +276,7 @@ func (p *Parser) parseValueContent() bool {
 
 	default:
 		// If we don't have a list or map, just emit a single value.
-		p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
+		p.emit(ValueEvent{Value: p.toValue()})
 		p.advance() // Consume the value.
 		return true
 	}
@@ -282,7 +286,7 @@ func (p *Parser) parseValueContent() bool {
 func (p *Parser) parseListFrom() bool {
 	// It's a regular list.
 	p.emit(ListStartEvent{})
-	p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
+	p.emit(ValueEvent{Value: p.toValue()})
 
 	// Advance to the next token for the list separator.
 	p.advance()
@@ -291,7 +295,7 @@ func (p *Parser) parseListFrom() bool {
 		if !p.advance() || !p.parseValue() {
 			return false
 		}
-		p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
+		p.emit(ValueEvent{Value: p.toValue()})
 
 		// Advance to the next token to check for more separators.
 		p.advance()
@@ -326,7 +330,7 @@ func (p *Parser) parseMapFrom() bool {
 
 // parseKeyValuePair parses a key-value pair in a map.
 func (p *Parser) parseKeyValuePair() bool {
-	p.emit(MapKeyEvent{ValueEvent{Type: p.current.Typ, Value: p.current.Val}})
+	p.emit(MapKeyEvent{Value: p.toValue()})
 
 	// Parse the colon between key and value.
 	if !p.advance() || !p.expect(TokenPairSeparator) {
@@ -338,7 +342,7 @@ func (p *Parser) parseKeyValuePair() bool {
 		return false
 	}
 
-	return p.emit(ValueEvent{Type: p.current.Typ, Value: p.current.Val})
+	return p.emit(ValueEvent{Value: p.toValue()})
 }
 
 // parseValue parses a single value

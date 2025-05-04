@@ -38,47 +38,53 @@ func parseHexFloat(s string) (float64, error) {
 	return mantissa, nil
 }
 
+// Value represents a plainfields value.
+type Value struct {
+	Type  TokenType
+	Value string
+}
+
 // IsNil checks if the value is nil.
-func (e ValueEvent) IsNil() bool {
-	return e.Type == TokenNil
+func (v Value) IsNil() bool {
+	return v.Type == TokenNil
 }
 
 // ToString returns the value as a string.
-func (e ValueEvent) ToString() (string, error) {
-	switch e.Type {
+func (v Value) ToString() (string, error) {
+	switch v.Type {
 	case TokenString:
-		return strconv.Unquote(e.Value)
+		return strconv.Unquote(v.Value)
 	case TokenIdentifier, TokenNumber:
-		return e.Value, nil
+		return v.Value, nil
 	default:
-		return "", fmt.Errorf("cannot convert %s to string", e.Type)
+		return "", fmt.Errorf("cannot convert %s to string", v.Type)
 	}
 }
 
 // ToInt returns the value as an integer.
-func (e ValueEvent) ToInt() (int64, error) {
-	if e.Type != TokenNumber {
-		return 0, fmt.Errorf("cannot convert %s to int", e.Type)
+func (v Value) ToInt() (int64, error) {
+	if v.Type != TokenNumber {
+		return 0, fmt.Errorf("cannot convert %s to int", v.Type)
 	}
-	return strconv.ParseInt(e.Value, 0, 64)
+	return strconv.ParseInt(v.Value, 0, 64)
 }
 
 // ToUint returns the value as an unsigned integer.
-func (e ValueEvent) ToUint() (uint64, error) {
-	if e.Type != TokenNumber {
-		return 0, fmt.Errorf("cannot convert %s to uint", e.Type)
+func (v Value) ToUint() (uint64, error) {
+	if v.Type != TokenNumber {
+		return 0, fmt.Errorf("cannot convert %s to uint", v.Type)
 	}
-	return strconv.ParseUint(e.Value, 0, 64)
+	return strconv.ParseUint(v.Value, 0, 64)
 }
 
 // ToFloat returns the value as a floating point number.
-func (e ValueEvent) ToFloat() (float64, error) {
-	if e.Type != TokenNumber {
-		return 0, fmt.Errorf("cannot convert %s to float", e.Type)
+func (v Value) ToFloat() (float64, error) {
+	if v.Type != TokenNumber {
+		return 0, fmt.Errorf("cannot convert %s to float", v.Type)
 	}
 
 	// Remove underscores used as separators.
-	s := strings.ReplaceAll(e.Value, "_", "")
+	s := strings.ReplaceAll(v.Value, "_", "")
 
 	// Handle different number bases.
 	if len(s) > 3 && s[0] == '0' {
@@ -86,7 +92,7 @@ func (e ValueEvent) ToFloat() (float64, error) {
 		case 'x', 'X':
 			// Check for hex float with 'p' exponent
 			if strings.ContainsAny(s, "pP") {
-				return strconv.ParseFloat(e.Value, 64)
+				return strconv.ParseFloat(v.Value, 64)
 			} else if strings.Contains(s, ".") {
 				return parseHexFloat(s)
 			}
@@ -116,17 +122,17 @@ func (e ValueEvent) ToFloat() (float64, error) {
 		}
 	}
 
-	return strconv.ParseFloat(e.Value, 64)
+	return strconv.ParseFloat(v.Value, 64)
 }
 
 // ToBool returns the value as a boolean.
-func (e ValueEvent) ToBool() (bool, error) {
-	switch e.Type {
+func (v Value) ToBool() (bool, error) {
+	switch v.Type {
 	case TokenTrue:
 		return true, nil
 	case TokenFalse:
 		return false, nil
 	default:
-		return false, fmt.Errorf("cannot convert %s to bool", e.Type)
+		return false, fmt.Errorf("cannot convert %s to bool", v.Type)
 	}
 }
