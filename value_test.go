@@ -104,7 +104,7 @@ func TestValueEvent_FloatError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			ev := Value{Type: TokenNumber, Value: tt.input}
+			ev := Value{Type: NumberValue, Value: tt.input}
 
 			_, err := ev.ToFloat()
 			if err == nil {

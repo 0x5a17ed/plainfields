@@ -25,24 +25,6 @@ type ParserEvent interface {
 }
 
 type (
-	// OrderedFieldStartEvent represents an ordered field value assignment without a key.
-	OrderedFieldStartEvent struct {
-		Index int
-	}
-
-	// LabeledFieldStartEvent represents the beginning of a field value assignment with a key.
-	LabeledFieldStartEvent struct {
-		Name string
-	}
-
-	// FieldEndEvent represents the end of a field value assignment.
-	FieldEndEvent struct{}
-
-	// ValueEvent represents a value in the field.
-	ValueEvent struct {
-		Value
-	}
-
 	// ListStartEvent represents the beginning of a value list.
 	ListStartEvent struct{}
 
@@ -60,6 +42,11 @@ type (
 		Value
 	}
 
+	// ValueEvent represents any value found.
+	ValueEvent struct {
+		Value
+	}
+
 	// ErrorEvent represents an error during parsing.
 	ErrorEvent struct {
 		Pos Position
@@ -72,29 +59,35 @@ func (e ErrorEvent) Error() string {
 	return fmt.Sprintf("Error at %s: %s", e.Pos, e.Msg)
 }
 
-func (OrderedFieldStartEvent) isParserEvent() {}
-func (LabeledFieldStartEvent) isParserEvent() {}
-func (FieldEndEvent) isParserEvent()          {}
-func (ValueEvent) isParserEvent()             {}
-func (ListStartEvent) isParserEvent()         {}
-func (ListEndEvent) isParserEvent()           {}
-func (MapStartEvent) isParserEvent()          {}
-func (MapEndEvent) isParserEvent()            {}
-func (MapKeyEvent) isParserEvent()            {}
-func (ErrorEvent) isParserEvent()             {}
+func (ValueEvent) isParserEvent()     {}
+func (ListStartEvent) isParserEvent() {}
+func (ListEndEvent) isParserEvent()   {}
+func (MapStartEvent) isParserEvent()  {}
+func (MapEndEvent) isParserEvent()    {}
+func (MapKeyEvent) isParserEvent()    {}
+func (ErrorEvent) isParserEvent()     {}
+
+type currentSectionState int
+
+const (
+	noSection currentSectionState = iota
+	orderedSection
+	labeledSection
+	eofSection
+)
 
 // Parser holds the state for parsing.
 type Parser struct {
-	yield func(ParserEvent) bool
-	next  func() (Token, bool)
+	config ParseOptions
+	yield  func(ParserEvent) bool
+	next   func() (Token, bool)
 
 	done     bool
 	peeked   *Token
 	current  Token
 	hasToken bool
 
-	fieldIndex     int
-	assignmentMode bool
+	state currentSectionState
 }
 
 // emit sends an event through yield.
@@ -163,7 +156,32 @@ func (p *Parser) expect(typ TokenType) bool {
 
 // toValue converts the current token to a Value.
 func (p *Parser) toValue() Value {
-	return Value{Type: p.current.Typ, Value: p.current.Val}
+	return valueFromToken(p.current)
+}
+
+// updateState updates the parser state.
+func (p *Parser) updateState(newState currentSectionState) {
+	switch {
+	case p.state == noSection && newState == orderedSection:
+		// If we are starting a new ordered section, emit the list start event.
+		p.emit(ListStartEvent{})
+	case p.state == noSection && newState == labeledSection:
+		// If we are starting a new labeled section, emit the map start event.
+		p.emit(MapStartEvent{})
+	case p.state == orderedSection && newState == labeledSection:
+		// Transition from ordered state to the labeled section state.
+		p.emit(ListEndEvent{})
+		p.emit(MapStartEvent{})
+	case newState == eofSection:
+		// If we are at the end of the file, emit the end event.
+		if p.state == orderedSection {
+			p.emit(ListEndEvent{})
+		} else if p.state == labeledSection {
+			p.emit(MapEndEvent{})
+		}
+	}
+
+	p.state = newState
 }
 
 // parseFieldList parses the top-level field list
@@ -182,35 +200,39 @@ func (p *Parser) parseFieldList() {
 			continue
 		}
 	}
+	p.updateState(eofSection)
 }
 
 // parseField parses a single field
 func (p *Parser) parseField() bool {
 	switch p.current.Typ {
 	case TokenFieldPrefix:
-		p.assignmentMode = true
+		p.updateState(labeledSection)
 		return p.parseFieldPrefix()
 
 	case TokenIdentifier:
 		// Check if this is a labeled field assignment.
 		if p.isNext(TokenAssign) {
-			p.assignmentMode = true
+			p.updateState(labeledSection)
 			return p.parseAssignment()
 		}
 
 		// If it's not an assignment, treat it as an ordered value.
 		fallthrough
 
-	case TokenString, TokenNumber, TokenTrue, TokenFalse, TokenNil:
-		if p.assignmentMode {
+	case TokenFieldSeparator, TokenString, TokenNumber, TokenTrue, TokenFalse, TokenNil:
+		if !p.config.AllowOrdered || p.state > orderedSection {
 			return p.errorf("ordered value not allowed here")
 		}
+		p.updateState(orderedSection)
 
-		p.emit(OrderedFieldStartEvent{p.fieldIndex})
-		p.fieldIndex++
-		p.emit(ValueEvent{Value: p.toValue()})
-		p.emit(FieldEndEvent{})
-		return p.advance()
+		if p.current.Typ == TokenFieldSeparator {
+			p.emit(ValueEvent{Value: Value{ZeroValue, ""}})
+			return true
+		} else {
+			p.emit(ValueEvent{Value: p.toValue()})
+			return p.advance()
+		}
 
 	default:
 		return p.errorf("expected field prefix, identifier, or value, got %s", p.current.Typ)
@@ -226,27 +248,26 @@ func (p *Parser) parseFieldPrefix() bool {
 	name := p.current.Val
 
 	// Emit as a boolean assignment.
-	p.emit(LabeledFieldStartEvent{name})
+	p.emit(MapKeyEvent{Value{IdentifierValue, name}})
 	if prefix == "^" {
-		p.emit(ValueEvent{Value{TokenTrue, "true"}})
+		p.emit(ValueEvent{Value{BooleanValue, "true"}})
 	} else { // `!`
-		p.emit(ValueEvent{Value{TokenFalse, "false"}})
+		p.emit(ValueEvent{Value{BooleanValue, "false"}})
 	}
-	p.emit(FieldEndEvent{})
+
 	return p.advance()
 }
 
 // parseAssignment handles key=value fields
 func (p *Parser) parseAssignment() bool {
-	p.emit(LabeledFieldStartEvent{Name: p.current.Val})
+	p.emit(MapKeyEvent{Value: p.toValue()})
 
 	p.advance() // Consume the `=` token.
 
 	// If the next token is a field separator or EOF, it's an empty assignment.
 	if p.isNext(TokenFieldSeparator, TokenEOF) {
-		p.advance() // Consume the assignment token.
-
-		p.emit(FieldEndEvent{})
+		p.advance()                                     // Consume the assignment token.
+		p.emit(ValueEvent{Value: Value{ZeroValue, ""}}) // Emit a zero value.
 		return true
 	}
 
@@ -255,7 +276,6 @@ func (p *Parser) parseAssignment() bool {
 		return false
 	}
 
-	p.emit(FieldEndEvent{})
 	return true
 }
 
@@ -367,13 +387,9 @@ func ParseTokens(tokens iter.Seq[Token], opts ...ParseOptions) iter.Seq[ParserEv
 		defer stop()
 
 		p := &Parser{
-			yield: yield,
-			next:  next,
-		}
-
-		// Set assignment mode if ordered values are not allowed.
-		if !opt.AllowOrdered {
-			p.assignmentMode = true
+			config: opt,
+			yield:  yield,
+			next:   next,
 		}
 
 		p.parseFieldList()
