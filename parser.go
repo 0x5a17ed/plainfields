@@ -67,13 +67,13 @@ func (MapEndEvent) isParserEvent()    {}
 func (MapKeyEvent) isParserEvent()    {}
 func (ErrorEvent) isParserEvent()     {}
 
-type currentSectionState int
+type parserState int
 
 const (
-	noSection currentSectionState = iota
-	orderedSection
-	labeledSection
-	eofSection
+	startState parserState = iota
+	orderedState
+	labeledState
+	eofState
 )
 
 // Parser holds the state for parsing.
@@ -87,7 +87,7 @@ type Parser struct {
 	current  Token
 	hasToken bool
 
-	state currentSectionState
+	state parserState
 }
 
 // emit sends an event through yield.
@@ -160,23 +160,23 @@ func (p *Parser) toValue() Value {
 }
 
 // updateState updates the parser state.
-func (p *Parser) updateState(newState currentSectionState) {
+func (p *Parser) updateState(newState parserState) {
 	switch {
-	case p.state == noSection && newState == orderedSection:
+	case p.state == startState && newState == orderedState:
 		// If we are starting a new ordered section, emit the list start event.
 		p.emit(ListStartEvent{})
-	case p.state == noSection && newState == labeledSection:
+	case p.state == startState && newState == labeledState:
 		// If we are starting a new labeled section, emit the map start event.
 		p.emit(MapStartEvent{})
-	case p.state == orderedSection && newState == labeledSection:
+	case p.state == orderedState && newState == labeledState:
 		// Transition from ordered state to the labeled section state.
 		p.emit(ListEndEvent{})
 		p.emit(MapStartEvent{})
-	case newState == eofSection:
+	case newState == eofState:
 		// If we are at the end of the file, emit the end event.
-		if p.state == orderedSection {
+		if p.state == orderedState {
 			p.emit(ListEndEvent{})
-		} else if p.state == labeledSection {
+		} else if p.state == labeledState {
 			p.emit(MapEndEvent{})
 		}
 	}
@@ -200,20 +200,20 @@ func (p *Parser) parseFieldList() {
 			continue
 		}
 	}
-	p.updateState(eofSection)
+	p.updateState(eofState)
 }
 
 // parseField parses a single field
 func (p *Parser) parseField() bool {
 	switch p.current.Typ {
 	case TokenBooleanPrefix:
-		p.updateState(labeledSection)
+		p.updateState(labeledState)
 		return p.parseBooleanPrefix()
 
 	case TokenIdentifier:
 		// Check if this is a labeled field assignment.
 		if p.isNext(TokenAssign) {
-			p.updateState(labeledSection)
+			p.updateState(labeledState)
 			return p.parseAssignment()
 		}
 
@@ -221,10 +221,10 @@ func (p *Parser) parseField() bool {
 		fallthrough
 
 	case TokenFieldSeparator, TokenString, TokenNumber, TokenTrue, TokenFalse, TokenNil:
-		if !p.config.AllowOrdered || p.state > orderedSection {
+		if !p.config.AllowOrdered || p.state > orderedState {
 			return p.errorf("ordered value not allowed here")
 		}
-		p.updateState(orderedSection)
+		p.updateState(orderedState)
 
 		if p.current.Typ == TokenFieldSeparator {
 			p.emit(ValueEvent{Value: Value{ZeroValue, ""}})
