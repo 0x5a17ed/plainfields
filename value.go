@@ -85,6 +85,11 @@ func (v Value) IsZero() bool {
 	return v.Type == ZeroValueType
 }
 
+// String returns the string representation of the Value.
+func (v Value) String() string {
+	return fmt.Sprintf("%s{%q}", v.Type, v.Value)
+}
+
 // IsNil checks if the value is nil.
 func (v Value) IsNil() bool {
 	return v.Type == NilValueType
