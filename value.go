@@ -40,34 +40,37 @@ func parseHexFloat(s string) (float64, error) {
 
 type ValueType int
 
+const (
+	InvalidValueType ValueType = iota
+	ZeroValueType
+	NilValueType
+	BooleanValueType
+	NumberValueType
+	StringValueType
+	IdentifierValueType
+)
+
 // String returns the string representation of the ValueType.
 func (vt ValueType) String() string {
 	switch vt {
-	case ZeroValue:
+	case InvalidValueType:
+		return "invalid"
+	case ZeroValueType:
 		return "zero"
-	case NilValue:
+	case NilValueType:
 		return "nil"
-	case BooleanValue:
+	case BooleanValueType:
 		return "boolean"
-	case NumberValue:
+	case NumberValueType:
 		return "number"
-	case StringValue:
+	case StringValueType:
 		return "string"
-	case IdentifierValue:
+	case IdentifierValueType:
 		return "identifier"
 	default:
 		return fmt.Sprintf("ValueType(%d)", vt)
 	}
 }
-
-const (
-	ZeroValue ValueType = iota
-	NilValue
-	BooleanValue
-	NumberValue
-	StringValue
-	IdentifierValue
-)
 
 // Value represents a plainfields value.
 type Value struct {
@@ -75,22 +78,24 @@ type Value struct {
 	Value string
 }
 
+var ZeroValue = Value{Type: ZeroValueType, Value: ""}
+
 // IsZero checks if the value is zero.
 func (v Value) IsZero() bool {
-	return v.Type == ZeroValue
+	return v.Type == ZeroValueType
 }
 
 // IsNil checks if the value is nil.
 func (v Value) IsNil() bool {
-	return v.Type == NilValue
+	return v.Type == NilValueType
 }
 
 // ToString returns the value as a string.
 func (v Value) ToString() (string, error) {
 	switch v.Type {
-	case StringValue:
+	case StringValueType:
 		return strconv.Unquote(v.Value)
-	case IdentifierValue, NumberValue:
+	case IdentifierValueType, NumberValueType:
 		return v.Value, nil
 	default:
 		return "", fmt.Errorf("cannot convert %s to string", v.Type)
@@ -99,7 +104,7 @@ func (v Value) ToString() (string, error) {
 
 // ToInt returns the value as an integer.
 func (v Value) ToInt() (int64, error) {
-	if v.Type != NumberValue {
+	if v.Type != NumberValueType {
 		return 0, fmt.Errorf("cannot convert %s to int", v.Type)
 	}
 	return strconv.ParseInt(v.Value, 0, 64)
@@ -107,7 +112,7 @@ func (v Value) ToInt() (int64, error) {
 
 // ToUint returns the value as an unsigned integer.
 func (v Value) ToUint() (uint64, error) {
-	if v.Type != NumberValue {
+	if v.Type != NumberValueType {
 		return 0, fmt.Errorf("cannot convert %s to uint", v.Type)
 	}
 	return strconv.ParseUint(v.Value, 0, 64)
@@ -115,7 +120,7 @@ func (v Value) ToUint() (uint64, error) {
 
 // ToFloat returns the value as a floating point number.
 func (v Value) ToFloat() (float64, error) {
-	if v.Type != NumberValue {
+	if v.Type != NumberValueType {
 		return 0, fmt.Errorf("cannot convert %s to float", v.Type)
 	}
 
@@ -163,7 +168,7 @@ func (v Value) ToFloat() (float64, error) {
 
 // ToBool returns the value as a boolean.
 func (v Value) ToBool() (bool, error) {
-	if v.Type != BooleanValue {
+	if v.Type != BooleanValueType {
 		return false, fmt.Errorf("cannot convert %s to bool", v.Type)
 	}
 
@@ -174,16 +179,17 @@ func (v Value) ToBool() (bool, error) {
 func valueFromToken(token Token) Value {
 	switch token.Typ {
 	case TokenString:
-		return Value{Type: StringValue, Value: token.Val}
+		return Value{Type: StringValueType, Value: token.Val}
 	case TokenNumber:
-		return Value{Type: NumberValue, Value: token.Val}
+		return Value{Type: NumberValueType, Value: token.Val}
 	case TokenIdentifier:
-		return Value{Type: IdentifierValue, Value: token.Val}
+		return Value{Type: IdentifierValueType, Value: token.Val}
 	case TokenFalse, TokenTrue:
-		return Value{Type: BooleanValue, Value: token.Val}
+		return Value{Type: BooleanValueType, Value: token.Val}
 	case TokenNil:
-		return Value{Type: NilValue, Value: "nil"}
+		return Value{Type: NilValueType, Value: "nil"}
+
 	default:
-		return Value{Type: ZeroValue, Value: ""}
+		return Value{}
 	}
 }

@@ -227,7 +227,7 @@ func (p *Parser) parseField() bool {
 		p.updateState(orderedState)
 
 		if p.current.Typ == TokenFieldSeparator {
-			p.emit(ValueEvent{Value: Value{ZeroValue, ""}})
+			p.emit(ValueEvent{Value: ZeroValue})
 			return true
 		} else {
 			p.emit(ValueEvent{Value: p.toValue()})
@@ -249,9 +249,9 @@ func (p *Parser) parseBooleanPrefix() bool {
 	// Emit as a boolean assignment.
 	p.emit(MapKeyEvent{Value: p.toValue()})
 	if prefix == "^" {
-		p.emit(ValueEvent{Value{BooleanValue, "true"}})
+		p.emit(ValueEvent{Value{BooleanValueType, "true"}})
 	} else { // `!`
-		p.emit(ValueEvent{Value{BooleanValue, "false"}})
+		p.emit(ValueEvent{Value{BooleanValueType, "false"}})
 	}
 
 	return p.advance()
@@ -265,8 +265,8 @@ func (p *Parser) parseAssignment() bool {
 
 	// If the next token is a field separator or EOF, it's an empty assignment.
 	if p.isNext(TokenFieldSeparator, TokenEOF) {
-		p.advance()                                     // Consume the assignment token.
-		p.emit(ValueEvent{Value: Value{ZeroValue, ""}}) // Emit a zero value.
+		p.advance()                          // Consume the assignment token.
+		p.emit(ValueEvent{Value: ZeroValue}) // Emit a zero value.
 		return true
 	}
 
