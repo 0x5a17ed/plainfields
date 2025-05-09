@@ -230,8 +230,7 @@ func (p *Parser) parseField() bool {
 			p.emit(ValueEvent{Value: ZeroValue})
 			return true
 		} else {
-			p.emit(ValueEvent{Value: p.toValue()})
-			return p.advance()
+			return p.parseValueContent()
 		}
 
 	default:

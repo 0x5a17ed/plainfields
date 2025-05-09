@@ -114,6 +114,15 @@ func TestParser(t *testing.T) {
 			MapEndEvent{},
 		}},
 
+		{"ordered list value", "red;blue;green", []ParserEvent{
+			ListStartEvent{},
+			ListStartEvent{},
+			ValueEvent{Value{IdentifierValueType, "red"}},
+			ValueEvent{Value{IdentifierValueType, "blue"}},
+			ValueEvent{Value{IdentifierValueType, "green"}},
+			ListEndEvent{},
+			ListEndEvent{},
+		}},
 		{"labeled list values", "colors=red;blue;green", []ParserEvent{
 			MapStartEvent{},
 			MapKeyEvent{Value{IdentifierValueType, "colors"}},
@@ -125,6 +134,16 @@ func TestParser(t *testing.T) {
 			MapEndEvent{},
 		}},
 
+		{"ordered map values", "host:localhost;port:8080", []ParserEvent{
+			ListStartEvent{},
+			MapStartEvent{},
+			MapKeyEvent{Value{IdentifierValueType, "host"}},
+			ValueEvent{Value{IdentifierValueType, "localhost"}},
+			MapKeyEvent{Value{IdentifierValueType, "port"}},
+			ValueEvent{Value{NumberValueType, "8080"}},
+			MapEndEvent{},
+			ListEndEvent{},
+		}},
 		{"labeled map values", "settings=host:localhost;port:8080", []ParserEvent{
 			MapStartEvent{},
 			MapKeyEvent{Value{IdentifierValueType, "settings"}},
