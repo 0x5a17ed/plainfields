@@ -1,12 +1,12 @@
-# PlainFields 🌱
+# Kaval 🌱
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/0x5a17ed/plainfields.svg)](https://pkg.go.dev/github.com/0x5a17ed/plainfields)
+[![Go Reference](https://pkg.go.dev/badge/github.com/0x5a17ed/kaval.svg)](https://pkg.go.dev/github.com/0x5a17ed/kaval)
 [![License: 0BSD](https://img.shields.io/badge/License-0BSD-blue.svg)](https://opensource.org/licenses/0BSD)
 
-PlainFields is a lightweight, human-friendly configuration language for Go applications. It provides a simple syntax for expressing structured data with fields, lists, and key-value pairs.
+Kaval is a lightweight, human-friendly configuration language for Go applications. It provides a simple syntax for expressing structured data with fields, lists, and key-value pairs.
 
 ```
-name=PlainFields, version=1.0.0, ^enabled, !deprecated, features=simple;human-readable;flexible, 
+Kaval, version=1.0.0, ^enabled, !deprecated, features=simple;human-readable;flexible, 
 settings=theme:dark;indent:4;display:compact
 ```
 
@@ -17,14 +17,14 @@ settings=theme:dark;indent:4;display:compact
   No curly braces, no complex nesting. Friendly to read and write by humans
 - **📏 Compact**  
   Minimal syntax overhead, no deep nesting to navigate
-- **🔄 Boolean toggles**  
+- **🔄 Convenient boolean toggles**  
   Use `^feature` to enable, `!feature` to disable
 - **📋 Lists and maps**  
   Simple syntax for collections: `tags=red;green;blue` `font=family:Arial;size:12`
 - **⚡ Event-based parser**  
   Efficient parsing and serialization with a streaming parser API
 - **🔨 Fluent builder API**  
-  Programmatically create plainfields strings
+  Programmatically create kaval strings
 - **🧩 Zero dependencies**  
   Just pure Go standard library, no `reflect` used
 
@@ -32,14 +32,14 @@ settings=theme:dark;indent:4;display:compact
 ## 📦 Installation
 
 ```bash
-go get -u github.com/0x5a17ed/plainfields
+go get -u github.com/0x5a17ed/kaval
 ```
 
 
 ## 🚀 Quick Start
 
 
-### 🔍 Parsing PlainFields
+### 🔍 Parsing Kaval
 
 ```go
 package main
@@ -47,41 +47,47 @@ package main
 import (
 	"fmt"
 	
-	"github.com/0x5a17ed/plainfields"
+	"github.com/0x5a17ed/kaval"
 )
 
 func main() {
 	input := "^enabled, name=john, settings=theme:dark;fontSize:14"
-	for event := range plainfields.Parse(input) {
+	for event := range kaval.Parse(input) {
 		switch e := event.(type) {
-		case plainfields.OrderedFieldStartEvent:
-			fmt.Printf("  Field: %s\n", e.Index)
-		case plainfields.LabeledFieldStartEvent:
-			fmt.Printf("  Field: %s\n", e.Name)
-		case plainfields.ValueEvent:
-			fmt.Printf("  Value: %s\n", e.Value)
-		case plainfields.MapStartEvent:
-			fmt.Printf("    Map:\n")
-		case plainfields.MapKeyEvent:
-			fmt.Printf("    Key: %s\n", e.Value)
+		case kaval.ListStartEvent:
+			fmt.Printf(" ListStart:\n")
+		case kaval.ListEndEvent:
+			fmt.Printf("   ListEnd:\n")
+		case kaval.MapStartEvent:
+			fmt.Printf("  MapStart:\n")
+		case kaval.MapEndEvent:
+			fmt.Printf("    MapEnd:\n")
+		case kaval.ValueEvent:
+			fmt.Printf("     Value: %s\n", e.Value)
+		case kaval.MapKeyEvent:
+			fmt.Printf("       Key: %s\n", e.Value)
 		}
 	}
 }
+
 // Output:
-// Field: enabled
-// Value: true
-// Field: name
-// Value: john
-// Field: settings
-// Map:
-// Key: theme
-// Value: dark
-// Key: fontSize
-// Value: 14
+//  MapStart:
+//       Key: enabled (identifier)
+//     Value: true (boolean)
+//       Key: name (identifier)
+//     Value: john (identifier)
+//       Key: settings (identifier)
+//  MapStart:
+//       Key: theme (identifier)
+//     Value: dark (identifier)
+//       Key: fontSize (identifier)
+//     Value: 14 (number)
+//    MapEnd:
+//    MapEnd:
 ```
 
 
-### ✏️ Creating PlainFields
+### ✏️ Creating Kaval
 
 ```go
 package main
@@ -89,11 +95,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/0x5a17ed/plainfields"
+	"github.com/0x5a17ed/kaval"
 )
 
 func main() {
-	builder := plainfields.NewBuilder()
+	builder := kaval.NewBuilder()
 	result := builder.
 		Enable("feature").
 		Labeled("name", "john").
@@ -110,7 +116,7 @@ func main() {
 
 ## 📝 Syntax
 
-PlainFields uses a simple, flat structure:
+Kaval uses a simple, flat structure:
 
 - **Fields** are comma-separated: `name=john, age=30`
 - **Boolean toggles** use prefixes: `^enabled`, `!disabled`
@@ -139,18 +145,18 @@ package main
 import (
 	"fmt"
 
-	"github.com/0x5a17ed/plainfields"
+	"github.com/0x5a17ed/kaval"
 )
 
 func main() {
-	options := plainfields.BuilderOptions{
+	options := kaval.BuilderOptions{
 		SpaceAfterFieldSeparator:   true,
 		SpaceAfterListSeparator:    true,
 		SpaceAfterPairsSeparator:   true,
 		SpaceAroundFieldAssignment: true,
 	}
 
-	builder := plainfields.NewBuilder(options)
+	builder := kaval.NewBuilder(options)
 	result := builder.
 		Enable("feature").
 		Labeled("name", "john").
