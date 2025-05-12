@@ -1,3 +1,3 @@
-module github.com/0x5a17ed/kaval
+module github.com/kaval-lang/kaval
 
 go 1.24.2
