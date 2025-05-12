@@ -20,6 +20,25 @@ func collectEvents(input string, options ...ParseOptions) ([]ParserEvent, *Error
 	return events, nil
 }
 
+func newValue(t ValueType, v string) Value {
+	switch t {
+	case IdentifierValueType:
+		return IdentifierValue{raw: v}
+	case NumberValueType:
+		return NumberValue{raw: v}
+	case StringValueType:
+		return StringValue{raw: v}
+	case BooleanValueType:
+		return BooleanValue{raw: v}
+	case NilValueType:
+		return NilValue{}
+	case ZeroValueType:
+		return ZeroValue{}
+	default:
+		return nil
+	}
+}
+
 func TestParser(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -30,106 +49,106 @@ func TestParser(t *testing.T) {
 
 		{"single ordered value", "name", []ParserEvent{
 			ListStartEvent{},
-			ValueEvent{Value{IdentifierValueType, "name"}},
+			ValueEvent{newValue(IdentifierValueType, "name")},
 			ListEndEvent{},
 		}},
 
 		{"multiple ordered value", `name,123,true,false,nil,"Hello World!"`, []ParserEvent{
 			ListStartEvent{},
-			ValueEvent{Value{IdentifierValueType, "name"}},
-			ValueEvent{Value{NumberValueType, "123"}},
-			ValueEvent{Value{BooleanValueType, "true"}},
-			ValueEvent{Value{BooleanValueType, "false"}},
-			ValueEvent{Value{NilValueType, "nil"}},
-			ValueEvent{Value{StringValueType, `"Hello World!"`}},
+			ValueEvent{newValue(IdentifierValueType, "name")},
+			ValueEvent{newValue(NumberValueType, "123")},
+			ValueEvent{newValue(BooleanValueType, "true")},
+			ValueEvent{newValue(BooleanValueType, "false")},
+			ValueEvent{newValue(NilValueType, "nil")},
+			ValueEvent{newValue(StringValueType, `"Hello World!"`)},
 			ListEndEvent{},
 		}},
 
 		{"ordered zero value", ",", []ParserEvent{
 			ListStartEvent{},
-			ValueEvent{Value{ZeroValueType, ""}},
+			ValueEvent{newValue(ZeroValueType, "")},
 			ListEndEvent{},
 		}},
 
 		{"ordered zero value", ",,", []ParserEvent{
 			ListStartEvent{},
-			ValueEvent{Value{ZeroValueType, ""}},
-			ValueEvent{Value{ZeroValueType, ""}},
+			ValueEvent{newValue(ZeroValueType, "")},
+			ValueEvent{newValue(ZeroValueType, "")},
 			ListEndEvent{},
 		}},
 
 		{"labeled field identifier", "name=john", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "name"}},
-			ValueEvent{Value{IdentifierValueType, "john"}},
+			MapKeyEvent{newValue(IdentifierValueType, "name")},
+			ValueEvent{newValue(IdentifierValueType, "john")},
 			MapEndEvent{},
 		}},
 
 		{"ordered and labeled fields", "john, age=30", []ParserEvent{
 			ListStartEvent{},
-			ValueEvent{Value{IdentifierValueType, "john"}},
+			ValueEvent{newValue(IdentifierValueType, "john")},
 			ListEndEvent{},
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "age"}},
-			ValueEvent{Value{NumberValueType, "30"}},
+			MapKeyEvent{newValue(IdentifierValueType, "age")},
+			ValueEvent{newValue(NumberValueType, "30")},
 			MapEndEvent{},
 		}},
 
 		{"empty assignment single", "name=", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "name"}},
-			ValueEvent{Value{ZeroValueType, ""}},
+			MapKeyEvent{newValue(IdentifierValueType, "name")},
+			ValueEvent{newValue(ZeroValueType, "")},
 			MapEndEvent{},
 		}},
 
 		{"empty assignment multi", "a=,b=", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "a"}},
-			ValueEvent{Value{ZeroValueType, ""}},
-			MapKeyEvent{Value{IdentifierValueType, "b"}},
-			ValueEvent{Value{ZeroValueType, ""}},
+			MapKeyEvent{newValue(IdentifierValueType, "a")},
+			ValueEvent{newValue(ZeroValueType, "")},
+			MapKeyEvent{newValue(IdentifierValueType, "b")},
+			ValueEvent{newValue(ZeroValueType, "")},
 			MapEndEvent{},
 		}},
 
 		{"field with prefix ^", "^enabled", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "enabled"}},
-			ValueEvent{Value{BooleanValueType, "true"}},
+			MapKeyEvent{newValue(IdentifierValueType, "enabled")},
+			ValueEvent{newValue(BooleanValueType, "true")},
 			MapEndEvent{},
 		}},
 		{"field with prefix !", "!disabled", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "disabled"}},
-			ValueEvent{Value{BooleanValueType, "false"}},
+			MapKeyEvent{newValue(IdentifierValueType, "disabled")},
+			ValueEvent{newValue(BooleanValueType, "false")},
 			MapEndEvent{},
 		}},
 		{"multiple fields", "name=john, age=30, active=true", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "name"}},
-			ValueEvent{Value{IdentifierValueType, "john"}},
-			MapKeyEvent{Value{IdentifierValueType, "age"}},
-			ValueEvent{Value{NumberValueType, "30"}},
-			MapKeyEvent{Value{IdentifierValueType, "active"}},
-			ValueEvent{Value{BooleanValueType, "true"}},
+			MapKeyEvent{newValue(IdentifierValueType, "name")},
+			ValueEvent{newValue(IdentifierValueType, "john")},
+			MapKeyEvent{newValue(IdentifierValueType, "age")},
+			ValueEvent{newValue(NumberValueType, "30")},
+			MapKeyEvent{newValue(IdentifierValueType, "active")},
+			ValueEvent{newValue(BooleanValueType, "true")},
 			MapEndEvent{},
 		}},
 
 		{"ordered list value", "red;blue;green", []ParserEvent{
 			ListStartEvent{},
 			ListStartEvent{},
-			ValueEvent{Value{IdentifierValueType, "red"}},
-			ValueEvent{Value{IdentifierValueType, "blue"}},
-			ValueEvent{Value{IdentifierValueType, "green"}},
+			ValueEvent{newValue(IdentifierValueType, "red")},
+			ValueEvent{newValue(IdentifierValueType, "blue")},
+			ValueEvent{newValue(IdentifierValueType, "green")},
 			ListEndEvent{},
 			ListEndEvent{},
 		}},
 		{"labeled list values", "colors=red;blue;green", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "colors"}},
+			MapKeyEvent{newValue(IdentifierValueType, "colors")},
 			ListStartEvent{},
-			ValueEvent{Value{IdentifierValueType, "red"}},
-			ValueEvent{Value{IdentifierValueType, "blue"}},
-			ValueEvent{Value{IdentifierValueType, "green"}},
+			ValueEvent{newValue(IdentifierValueType, "red")},
+			ValueEvent{newValue(IdentifierValueType, "blue")},
+			ValueEvent{newValue(IdentifierValueType, "green")},
 			ListEndEvent{},
 			MapEndEvent{},
 		}},
@@ -137,112 +156,112 @@ func TestParser(t *testing.T) {
 		{"ordered map values", "host:localhost;port:8080", []ParserEvent{
 			ListStartEvent{},
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "host"}},
-			ValueEvent{Value{IdentifierValueType, "localhost"}},
-			MapKeyEvent{Value{IdentifierValueType, "port"}},
-			ValueEvent{Value{NumberValueType, "8080"}},
+			MapKeyEvent{newValue(IdentifierValueType, "host")},
+			ValueEvent{newValue(IdentifierValueType, "localhost")},
+			MapKeyEvent{newValue(IdentifierValueType, "port")},
+			ValueEvent{newValue(NumberValueType, "8080")},
 			MapEndEvent{},
 			ListEndEvent{},
 		}},
 		{"labeled map values", "settings=host:localhost;port:8080", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "settings"}},
+			MapKeyEvent{newValue(IdentifierValueType, "settings")},
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "host"}},
-			ValueEvent{Value{IdentifierValueType, "localhost"}},
-			MapKeyEvent{Value{IdentifierValueType, "port"}},
-			ValueEvent{Value{NumberValueType, "8080"}},
+			MapKeyEvent{newValue(IdentifierValueType, "host")},
+			ValueEvent{newValue(IdentifierValueType, "localhost")},
+			MapKeyEvent{newValue(IdentifierValueType, "port")},
+			ValueEvent{newValue(NumberValueType, "8080")},
 			MapEndEvent{},
 			MapEndEvent{},
 		}},
 
 		{"map with boolean prefix", "features=^enabled;!disabled", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "features"}},
+			MapKeyEvent{newValue(IdentifierValueType, "features")},
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "enabled"}},
-			ValueEvent{Value{BooleanValueType, "true"}},
-			MapKeyEvent{Value{IdentifierValueType, "disabled"}},
-			ValueEvent{Value{BooleanValueType, "false"}},
+			MapKeyEvent{newValue(IdentifierValueType, "enabled")},
+			ValueEvent{newValue(BooleanValueType, "true")},
+			MapKeyEvent{newValue(IdentifierValueType, "disabled")},
+			ValueEvent{newValue(BooleanValueType, "false")},
 			MapEndEvent{},
 			MapEndEvent{},
 		}},
 		{"mixed value types", `data="hello";123;true;nil`, []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "data"}},
+			MapKeyEvent{newValue(IdentifierValueType, "data")},
 			ListStartEvent{},
-			ValueEvent{Value{StringValueType, `"hello"`}},
-			ValueEvent{Value{NumberValueType, "123"}},
-			ValueEvent{Value{BooleanValueType, "true"}},
-			ValueEvent{Value{NilValueType, "nil"}},
+			ValueEvent{newValue(StringValueType, `"hello"`)},
+			ValueEvent{newValue(NumberValueType, "123")},
+			ValueEvent{newValue(BooleanValueType, "true")},
+			ValueEvent{newValue(NilValueType, "nil")},
 			ListEndEvent{},
 			MapEndEvent{},
 		}},
 		{"hex number", "value=0xFF", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "value"}},
-			ValueEvent{Value{NumberValueType, "0xFF"}},
+			MapKeyEvent{newValue(IdentifierValueType, "value")},
+			ValueEvent{newValue(NumberValueType, "0xFF")},
 			MapEndEvent{},
 		}},
 		{"binary number", "flags=0b1010", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "flags"}},
-			ValueEvent{Value{NumberValueType, "0b1010"}},
+			MapKeyEvent{newValue(IdentifierValueType, "flags")},
+			ValueEvent{newValue(NumberValueType, "0b1010")},
 			MapEndEvent{},
 		}},
 		{"octal number", "perms=0o755", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "perms"}},
-			ValueEvent{Value{NumberValueType, "0o755"}},
+			MapKeyEvent{newValue(IdentifierValueType, "perms")},
+			ValueEvent{newValue(NumberValueType, "0o755")},
 			MapEndEvent{},
 		}},
 		{"negative number", "temp=-42.5", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "temp"}},
-			ValueEvent{Value{NumberValueType, "-42.5"}},
+			MapKeyEvent{newValue(IdentifierValueType, "temp")},
+			ValueEvent{newValue(NumberValueType, "-42.5")},
 			MapEndEvent{},
 		}},
 		{"scientific notation", "value=1.23e-4", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "value"}},
-			ValueEvent{Value{NumberValueType, "1.23e-4"}},
+			MapKeyEvent{newValue(IdentifierValueType, "value")},
+			ValueEvent{newValue(NumberValueType, "1.23e-4")},
 			MapEndEvent{},
 		}},
 		{"single quoted string", "msg='hello world'", []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "msg"}},
-			ValueEvent{Value{StringValueType, `'hello world'`}},
+			MapKeyEvent{newValue(IdentifierValueType, "msg")},
+			ValueEvent{newValue(StringValueType, `'hello world'`)},
 			MapEndEvent{},
 		}},
 		{"empty string", `empty=""`, []ParserEvent{
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "empty"}},
-			ValueEvent{Value{StringValueType, `""`}},
+			MapKeyEvent{newValue(IdentifierValueType, "empty")},
+			ValueEvent{newValue(StringValueType, `""`)},
 			MapEndEvent{},
 		}},
 		{"complex example", "^enabled, name=john, settings=theme:dark;fontSize:14;autoSave:true, tags=dev;prod", []ParserEvent{
 			MapStartEvent{},
 
-			MapKeyEvent{Value{IdentifierValueType, "enabled"}},
-			ValueEvent{Value{BooleanValueType, "true"}},
+			MapKeyEvent{newValue(IdentifierValueType, "enabled")},
+			ValueEvent{newValue(BooleanValueType, "true")},
 
-			MapKeyEvent{Value{IdentifierValueType, "name"}},
-			ValueEvent{Value{IdentifierValueType, "john"}},
+			MapKeyEvent{newValue(IdentifierValueType, "name")},
+			ValueEvent{newValue(IdentifierValueType, "john")},
 
-			MapKeyEvent{Value{IdentifierValueType, "settings"}},
+			MapKeyEvent{newValue(IdentifierValueType, "settings")},
 			MapStartEvent{},
-			MapKeyEvent{Value{IdentifierValueType, "theme"}},
-			ValueEvent{Value{IdentifierValueType, "dark"}},
-			MapKeyEvent{Value{IdentifierValueType, "fontSize"}},
-			ValueEvent{Value{NumberValueType, "14"}},
-			MapKeyEvent{Value{IdentifierValueType, "autoSave"}},
-			ValueEvent{Value{BooleanValueType, "true"}},
+			MapKeyEvent{newValue(IdentifierValueType, "theme")},
+			ValueEvent{newValue(IdentifierValueType, "dark")},
+			MapKeyEvent{newValue(IdentifierValueType, "fontSize")},
+			ValueEvent{newValue(NumberValueType, "14")},
+			MapKeyEvent{newValue(IdentifierValueType, "autoSave")},
+			ValueEvent{newValue(BooleanValueType, "true")},
 			MapEndEvent{},
 
-			MapKeyEvent{Value{IdentifierValueType, "tags"}},
+			MapKeyEvent{newValue(IdentifierValueType, "tags")},
 			ListStartEvent{},
-			ValueEvent{Value{IdentifierValueType, "dev"}},
-			ValueEvent{Value{IdentifierValueType, "prod"}},
+			ValueEvent{newValue(IdentifierValueType, "dev")},
+			ValueEvent{newValue(IdentifierValueType, "prod")},
 			ListEndEvent{},
 
 			MapEndEvent{},
@@ -337,12 +356,12 @@ func TestParseOptions(t *testing.T) {
 func TestParserEventInterface(t *testing.T) {
 	// Create instances of each event type.
 	events := []ParserEvent{
-		ValueEvent{Value{Type: StringValueType, Value: `"test"`}},
+		ValueEvent{newValue(StringValueType, `"test"`)},
 		ListStartEvent{},
 		ListEndEvent{},
 		MapStartEvent{},
 		MapEndEvent{},
-		MapKeyEvent{Value{Type: IdentifierValueType, Value: "key"}},
+		MapKeyEvent{newValue(IdentifierValueType, "key")},
 		ErrorEvent{Msg: "error", Pos: Position{Offset: 0, Column: 1}},
 	}
 

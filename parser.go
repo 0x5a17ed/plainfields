@@ -59,6 +59,16 @@ func (e ErrorEvent) Error() string {
 	return fmt.Sprintf("Error at %s: %s", e.Pos, e.Msg)
 }
 
+// Unwrap returns the internal value of the event.
+func (e ValueEvent) Unwrap() Value {
+	return e.Value
+}
+
+// Unwrap returns the internal value of the event.
+func (e MapKeyEvent) Unwrap() Value {
+	return e.Value
+}
+
 func (ValueEvent) isParserEvent()     {}
 func (ListStartEvent) isParserEvent() {}
 func (ListEndEvent) isParserEvent()   {}
@@ -227,7 +237,7 @@ func (p *Parser) parseField() bool {
 		p.updateState(orderedState)
 
 		if p.current.Typ == TokenFieldSeparator {
-			p.emit(ValueEvent{Value: ZeroValue})
+			p.emit(ValueEvent{ZeroValue{}})
 			return true
 		} else {
 			return p.parseValueContent()
@@ -246,11 +256,11 @@ func (p *Parser) parseBooleanPrefix() bool {
 	}
 
 	// Emit as a boolean assignment.
-	p.emit(MapKeyEvent{Value: p.toValue()})
+	p.emit(MapKeyEvent{p.toValue()})
 	if prefix == "^" {
-		p.emit(ValueEvent{Value{BooleanValueType, "true"}})
+		p.emit(ValueEvent{BooleanValue{"true"}})
 	} else { // `!`
-		p.emit(ValueEvent{Value{BooleanValueType, "false"}})
+		p.emit(ValueEvent{BooleanValue{"false"}})
 	}
 
 	return p.advance()
@@ -258,14 +268,14 @@ func (p *Parser) parseBooleanPrefix() bool {
 
 // parseAssignment handles key=value fields
 func (p *Parser) parseAssignment() bool {
-	p.emit(MapKeyEvent{Value: p.toValue()})
+	p.emit(MapKeyEvent{p.toValue()})
 
 	p.advance() // Consume the `=` token.
 
 	// If the next token is a field separator or EOF, it's an empty assignment.
 	if p.isNext(TokenFieldSeparator, TokenEOF) {
-		p.advance()                          // Consume the assignment token.
-		p.emit(ValueEvent{Value: ZeroValue}) // Emit a zero value.
+		p.advance()                     // Consume the assignment token.
+		p.emit(ValueEvent{ZeroValue{}}) // Emit a zero value.
 		return true
 	}
 
@@ -299,7 +309,7 @@ func (p *Parser) parseValueContent() bool {
 
 	default:
 		// If we don't have a list or map, just emit a single value.
-		p.emit(ValueEvent{Value: p.toValue()})
+		p.emit(ValueEvent{p.toValue()})
 		p.advance() // Consume the value.
 		return true
 	}
@@ -309,7 +319,7 @@ func (p *Parser) parseValueContent() bool {
 func (p *Parser) parseListValue() bool {
 	// It's a regular list.
 	p.emit(ListStartEvent{})
-	p.emit(ValueEvent{Value: p.toValue()})
+	p.emit(ValueEvent{p.toValue()})
 
 	// Advance to the next token for the list separator.
 	p.advance()
@@ -318,7 +328,7 @@ func (p *Parser) parseListValue() bool {
 		if !p.advance() || !p.isValue() {
 			return false
 		}
-		p.emit(ValueEvent{Value: p.toValue()})
+		p.emit(ValueEvent{p.toValue()})
 
 		// Advance to the next token to check for more separators.
 		p.advance()
@@ -362,7 +372,7 @@ func (p *Parser) parseDictPair() bool {
 	if !p.isValue() {
 		return false
 	}
-	p.emit(MapKeyEvent{Value: p.toValue()})
+	p.emit(MapKeyEvent{p.toValue()})
 
 	// Parse the colon between key and value.
 	if !p.advance() || !p.isToken(TokenPairSeparator) {
@@ -374,7 +384,7 @@ func (p *Parser) parseDictPair() bool {
 		return false
 	}
 
-	return p.emit(ValueEvent{Value: p.toValue()}) && p.advance()
+	return p.emit(ValueEvent{p.toValue()}) && p.advance()
 }
 
 // isValue parses a single value
