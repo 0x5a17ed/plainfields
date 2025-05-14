@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"iter"
 	"slices"
+	"strconv"
 )
 
 // ParseOptions holds options for parsing.
@@ -257,11 +258,7 @@ func (p *Parser) parseBooleanPrefix() bool {
 
 	// Emit as a boolean assignment.
 	p.emit(MapKeyEvent{p.toValue()})
-	if prefix == "^" {
-		p.emit(ValueEvent{BooleanValue{"true"}})
-	} else { // `!`
-		p.emit(ValueEvent{BooleanValue{"false"}})
-	}
+	p.emit(ValueEvent{BooleanValue{strconv.FormatBool(prefix == "^")}})
 
 	return p.advance()
 }
