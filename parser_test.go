@@ -32,8 +32,6 @@ func newValue(t ValueType, v string) Value {
 		return BooleanValue{raw: v}
 	case NilValueType:
 		return NilValue{}
-	case ZeroValueType:
-		return ZeroValue{}
 	default:
 		return nil
 	}
@@ -64,17 +62,33 @@ func TestParser(t *testing.T) {
 			ListEndEvent{},
 		}},
 
-		{"ordered zero value", ",", []ParserEvent{
+		{"ordered implicit nil field", ",", []ParserEvent{
 			ListStartEvent{},
-			ValueEvent{newValue(ZeroValueType, "")},
+			ValueEvent{newValue(NilValueType, "")},
 			ListEndEvent{},
 		}},
 
-		{"ordered zero value", ",,", []ParserEvent{
+		{"ordered implicit multiple nil values", ",,", []ParserEvent{
 			ListStartEvent{},
-			ValueEvent{newValue(ZeroValueType, "")},
-			ValueEvent{newValue(ZeroValueType, "")},
+			ValueEvent{newValue(NilValueType, "")},
+			ValueEvent{newValue(NilValueType, "")},
 			ListEndEvent{},
+		}},
+
+		{"labeled implicit nil single field", "name=", []ParserEvent{
+			MapStartEvent{},
+			MapKeyEvent{newValue(IdentifierValueType, "name")},
+			ValueEvent{newValue(NilValueType, "")},
+			MapEndEvent{},
+		}},
+
+		{"labeled implicit nil multiple fields", "a=,b=", []ParserEvent{
+			MapStartEvent{},
+			MapKeyEvent{newValue(IdentifierValueType, "a")},
+			ValueEvent{newValue(NilValueType, "")},
+			MapKeyEvent{newValue(IdentifierValueType, "b")},
+			ValueEvent{newValue(NilValueType, "")},
+			MapEndEvent{},
 		}},
 
 		{"labeled field identifier", "name=john", []ParserEvent{
@@ -91,22 +105,6 @@ func TestParser(t *testing.T) {
 			MapStartEvent{},
 			MapKeyEvent{newValue(IdentifierValueType, "age")},
 			ValueEvent{newValue(NumberValueType, "30")},
-			MapEndEvent{},
-		}},
-
-		{"empty assignment single", "name=", []ParserEvent{
-			MapStartEvent{},
-			MapKeyEvent{newValue(IdentifierValueType, "name")},
-			ValueEvent{newValue(ZeroValueType, "")},
-			MapEndEvent{},
-		}},
-
-		{"empty assignment multi", "a=,b=", []ParserEvent{
-			MapStartEvent{},
-			MapKeyEvent{newValue(IdentifierValueType, "a")},
-			ValueEvent{newValue(ZeroValueType, "")},
-			MapKeyEvent{newValue(IdentifierValueType, "b")},
-			ValueEvent{newValue(ZeroValueType, "")},
 			MapEndEvent{},
 		}},
 
@@ -142,6 +140,7 @@ func TestParser(t *testing.T) {
 			ListEndEvent{},
 			ListEndEvent{},
 		}},
+
 		{"labeled list values", "colors=red;blue;green", []ParserEvent{
 			MapStartEvent{},
 			MapKeyEvent{newValue(IdentifierValueType, "colors")},
@@ -163,6 +162,7 @@ func TestParser(t *testing.T) {
 			MapEndEvent{},
 			ListEndEvent{},
 		}},
+
 		{"labeled map values", "settings=host:localhost;port:8080", []ParserEvent{
 			MapStartEvent{},
 			MapKeyEvent{newValue(IdentifierValueType, "settings")},
@@ -230,7 +230,7 @@ func TestParser(t *testing.T) {
 		{"single quoted string", "msg='hello world'", []ParserEvent{
 			MapStartEvent{},
 			MapKeyEvent{newValue(IdentifierValueType, "msg")},
-			ValueEvent{newValue(StringValueType, `'hello world'`)},
+			ValueEvent{newValue(StringValueType, `"hello world"`)},
 			MapEndEvent{},
 		}},
 		{"empty string", `empty=""`, []ParserEvent{

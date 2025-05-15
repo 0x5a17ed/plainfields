@@ -7,24 +7,29 @@ import (
 
 func TestValueType_GoString(t *testing.T) {
 	tests := []struct {
-		vt   ValueType
-		want string
+		vt         ValueType
+		goStringer string
+		stringer   string
 	}{
-		{InvalidValueType, "InvalidValueType"},
-		{ZeroValueType, "ZeroValueType"},
-		{NilValueType, "NilValueType"},
-		{BooleanValueType, "BooleanValueType"},
-		{NumberValueType, "NumberValueType"},
-		{StringValueType, "StringValueType"},
-		{IdentifierValueType, "IdentifierValueType"},
-		{ValueType(999), "ValueType(999)"}, // unknown case
+		{InvalidValueType, "InvalidValueType", "invalid"},
+		{NilValueType, "NilValueType", "nil"},
+		{BooleanValueType, "BooleanValueType", "boolean"},
+		{NumberValueType, "NumberValueType", "number"},
+		{IdentifierValueType, "IdentifierValueType", "identifier"},
+		{StringValueType, "StringValueType", "string"},
+		{ValueType(999), "ValueType(999)", "ValueType(999)"}, // unknown case
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.want, func(t *testing.T) {
+		t.Run(tt.goStringer, func(t *testing.T) {
 			got := tt.vt.GoString()
-			if got != tt.want {
-				t.Errorf("GoString() = %q, want %q", got, tt.want)
+			if got != tt.goStringer {
+				t.Errorf("GoString() = %q, want %q", got, tt.goStringer)
+			}
+
+			got = tt.vt.String()
+			if got != tt.stringer {
+				t.Errorf("String() = %q, want %q", got, tt.stringer)
 			}
 		})
 	}
@@ -75,15 +80,22 @@ func TestValue_Conversions(t *testing.T) {
 		wantFloat  *float64
 		wantBool   *bool
 		wantNil    bool
-		wantZero   bool
 	}{
-		{input: `,`, wantRaw: p("zero"), wantZero: true},
+		{input: `,`, wantRaw: p("nil"), wantNil: true},
+		{input: `nil`, wantNil: true},
 
 		{input: `field`, wantString: p("field")},
 		{input: `"hello"`, wantString: p("hello")},
+		{input: `'hello'`, wantRaw: p(`"hello"`), wantString: p("hello")},
+		{input: `""`, wantString: p(""), wantNil: true},
+		{input: `''`, wantRaw: p(`""`), wantString: p(""), wantNil: true},
+
 		{input: `-42`, wantInt: p(int64(-42)), wantFloat: p(float64(-42))},
 		{input: `23`, wantInt: p(int64(23)), wantUint: p(uint64(23)), wantFloat: p(float64(23))},
 		{input: `3.14`, wantFloat: p(float64(3.14))},
+		{input: `3.14`, wantFloat: p(float64(3.14))},
+		{input: `0`, wantUint: p(uint64(0)), wantInt: p(int64(0)), wantFloat: p(float64(0)), wantNil: true},
+		{input: `0.0`, wantFloat: p(float64(0)), wantNil: true},
 
 		{input: "0x23", wantInt: p(int64(0x23)), wantUint: p(uint64(0x23)), wantFloat: p(float64(0x23))},
 		{input: "0x23.1", wantFloat: p(float64(35.0625))},
@@ -96,8 +108,7 @@ func TestValue_Conversions(t *testing.T) {
 		{input: "0b01100101", wantInt: p(int64(101)), wantUint: p(uint64(101)), wantFloat: p(float64(101))},
 
 		{input: `true`, wantBool: p(true)},
-		{input: `false`, wantBool: p(false), wantZero: true},
-		{input: `nil`, wantNil: true, wantZero: true},
+		{input: `false`, wantBool: p(false), wantNil: true},
 	}
 
 	for _, tt := range tests {
@@ -123,10 +134,6 @@ func TestValue_Conversions(t *testing.T) {
 
 			if got := IsNil(ev); got != tt.wantNil {
 				t.Errorf("IsNil() = %t, want %t", got, tt.wantNil)
-			}
-
-			if got := IsZero(ev); got != tt.wantZero {
-				t.Errorf("IsZero() = %t, want %t", got, tt.wantZero)
 			}
 		})
 	}
@@ -209,7 +216,6 @@ func TestValueStringer(t *testing.T) {
 		expected string
 	}{
 		{"NilValue", NilValue{}, "nil (nil)"},
-		{"ZeroValue", ZeroValue{}, "zero (zero)"},
 		{"BooleanValue true", BooleanValue{"true"}, "true (boolean)"},
 		{"BooleanValue false", BooleanValue{"false"}, "false (boolean)"},
 		{"NumberValue unsigned", NumberValue{"42"}, "42 (number)"},
@@ -221,7 +227,12 @@ func TestValueStringer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.value.String()
+			stringer, ok := tt.value.(fmt.Stringer)
+			if !ok {
+				t.Fatalf("Value %T does not implement fmt.Stringer", tt.value)
+			}
+
+			got := stringer.String()
 			if got != tt.expected {
 				t.Errorf("String() = %q, want %q", got, tt.expected)
 			}

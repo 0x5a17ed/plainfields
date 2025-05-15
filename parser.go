@@ -156,9 +156,6 @@ func (p *Parser) advance() bool {
 
 // isToken checks if the current token is of the expected type
 func (p *Parser) isToken(typ TokenType) bool {
-	if !p.hasToken {
-		return p.errorf("unexpected end of input")
-	}
 	if p.current.Typ != typ {
 		return p.errorf("expected %s, got %s", typ, p.current.Typ)
 	}
@@ -238,7 +235,7 @@ func (p *Parser) parseField() bool {
 		p.updateState(orderedState)
 
 		if p.current.Typ == TokenFieldSeparator {
-			p.emit(ValueEvent{ZeroValue{}})
+			p.emit(ValueEvent{NilValue{}})
 			return true
 		} else {
 			return p.parseValueContent()
@@ -271,8 +268,8 @@ func (p *Parser) parseAssignment() bool {
 
 	// If the next token is a field separator or EOF, it's an empty assignment.
 	if p.isNext(TokenFieldSeparator, TokenEOF) {
-		p.advance()                     // Consume the assignment token.
-		p.emit(ValueEvent{ZeroValue{}}) // Emit a zero value.
+		p.advance()                    // Consume the assignment token.
+		p.emit(ValueEvent{NilValue{}}) // Emit a zero value.
 		return true
 	}
 

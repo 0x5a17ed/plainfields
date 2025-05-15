@@ -11,12 +11,11 @@ type ValueType int
 
 const (
 	InvalidValueType ValueType = iota
-	ZeroValueType
 	NilValueType
 	BooleanValueType
 	NumberValueType
-	StringValueType
 	IdentifierValueType
+	StringValueType
 )
 
 // GoString returns the Go string representation of the ValueType.
@@ -24,8 +23,6 @@ func (vt ValueType) GoString() string {
 	switch vt {
 	case InvalidValueType:
 		return "InvalidValueType"
-	case ZeroValueType:
-		return "ZeroValueType"
 	case NilValueType:
 		return "NilValueType"
 	case BooleanValueType:
@@ -46,8 +43,6 @@ func (vt ValueType) String() string {
 	switch vt {
 	case InvalidValueType:
 		return "invalid"
-	case ZeroValueType:
-		return "zero"
 	case NilValueType:
 		return "nil"
 	case BooleanValueType:
@@ -65,58 +60,47 @@ func (vt ValueType) String() string {
 
 // Value represents a plainfields value.
 type Value interface {
-	fmt.Stringer
 	Type() ValueType
 	Raw() string
 }
 
+// NilValue represents a nil or zero value.
 type NilValue struct{}
 
-func (v NilValue) String() string  { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
 func (v NilValue) Type() ValueType { return NilValueType }
 func (v NilValue) Raw() string     { return "nil" }
-func (v NilValue) IsZero() bool    { return true }
+func (v NilValue) String() string  { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
+func (v NilValue) IsNil() bool     { return true }
 
-func IsNil(v Value) bool { return v.Type() == NilValueType }
+// BooleanValue represents a boolean value.
+type BooleanValue struct{ raw string }
 
-type ZeroValue struct{}
-
-func (v ZeroValue) String() string  { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
-func (v ZeroValue) Type() ValueType { return ZeroValueType }
-func (v ZeroValue) Raw() string     { return "zero" }
-func (v ZeroValue) IsZero() bool    { return true }
-
-type IdentifierValue struct{ raw string }
-
-func (v IdentifierValue) String() string  { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
-func (v IdentifierValue) Type() ValueType { return IdentifierValueType }
-func (v IdentifierValue) Raw() string     { return v.raw }
-func (v IdentifierValue) ToString() (string, error) {
-	return v.raw, nil
+func (v BooleanValue) Type() ValueType { return BooleanValueType }
+func (v BooleanValue) Raw() string     { return v.raw }
+func (v BooleanValue) String() string  { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
+func (v BooleanValue) IsNil() bool     { return v.raw == "false" }
+func (v BooleanValue) ToBool() (bool, error) {
+	switch v.raw {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid boolean: %s", v.raw)
+	}
 }
 
-type StringValue struct {
-	raw string
-}
-
-func (v StringValue) String() string  { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
-func (v StringValue) Type() ValueType { return StringValueType }
-func (v StringValue) Raw() string     { return v.raw }
-func (v StringValue) IsZero() bool    { return len(v.raw) < 2 }
-func (v StringValue) ToString() (string, error) {
-	return strconv.Unquote(v.raw)
-}
-
+// NumberValue represents integer or floating-point number values.
 type NumberValue struct{ raw string }
 
-func (v NumberValue) String() string          { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
 func (v NumberValue) Type() ValueType         { return NumberValueType }
 func (v NumberValue) Raw() string             { return v.raw }
+func (v NumberValue) String() string          { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
 func (v NumberValue) IsSigned() bool          { return strings.HasPrefix(v.raw, "-") }
 func (v NumberValue) IsFloat() bool           { return strings.ContainsAny(v.raw, ".eEpP") }
 func (v NumberValue) ToUint() (uint64, error) { return strconv.ParseUint(v.raw, 0, 64) }
 func (v NumberValue) ToInt() (int64, error)   { return strconv.ParseInt(v.raw, 0, 64) }
-func (v NumberValue) IsZero() bool {
+func (v NumberValue) IsNil() bool {
 	n, err := v.ToFloat()
 	return err == nil && n == 0
 }
@@ -175,28 +159,32 @@ func parseHexFloat(s string) (float64, error) {
 	return mantissa, nil
 }
 
-type BooleanValue struct{ raw string }
+// IdentifierValue represents an identifier value.
+type IdentifierValue struct{ raw string }
 
-func (v BooleanValue) String() string  { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
-func (v BooleanValue) IsZero() bool    { return v.raw == "false" }
-func (v BooleanValue) Type() ValueType { return BooleanValueType }
-func (v BooleanValue) Raw() string     { return v.raw }
-func (v BooleanValue) ToBool() (bool, error) {
-	switch v.raw {
-	case "true":
-		return true, nil
-	case "false":
-		return false, nil
-	default:
-		return false, fmt.Errorf("invalid boolean: %s", v.raw)
-	}
+func (v IdentifierValue) Type() ValueType { return IdentifierValueType }
+func (v IdentifierValue) Raw() string     { return v.raw }
+func (v IdentifierValue) String() string  { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
+func (v IdentifierValue) ToString() (string, error) {
+	return v.raw, nil
+}
+
+// StringValue represents a string value.
+type StringValue struct{ raw string }
+
+func (v StringValue) Type() ValueType { return StringValueType }
+func (v StringValue) Raw() string     { return v.raw }
+func (v StringValue) String() string  { return fmt.Sprintf("%s (%s)", v.Raw(), v.Type()) }
+func (v StringValue) IsNil() bool     { return len(v.raw) <= 2 }
+func (v StringValue) ToString() (string, error) {
+	return strconv.Unquote(v.raw)
 }
 
 // valueFromToken converts a token to a Value.
 func valueFromToken(token Token) Value {
 	switch token.Typ {
 	case TokenString:
-		return StringValue{raw: token.Val}
+		return StringValue{raw: `"` + token.Val[1:len(token.Val)-1] + `"`}
 	case TokenNumber:
 		return NumberValue{raw: token.Val}
 	case TokenIdentifier:
@@ -224,10 +212,10 @@ func As[T any](v any) (val T, ok bool) {
 	return zero, false
 }
 
-// IsZero checks if a Value is a zero value.
-func IsZero(v Value) bool {
-	if check, ok := As[interface{ IsZero() bool }](v); ok {
-		return check.IsZero()
+// IsNil checks if a Value is a zero value.
+func IsNil(v Value) bool {
+	if check, ok := As[interface{ IsNil() bool }](v); ok {
+		return check.IsNil()
 	}
 
 	return false
