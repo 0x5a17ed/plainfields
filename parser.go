@@ -167,6 +167,11 @@ func (p *Parser) toValue() Value {
 	return valueFromToken(p.current)
 }
 
+// emitValueEvent emits the current token as a ValueEvent.
+func (p *Parser) emitValueEvent() bool {
+	return p.emit(ValueEvent{p.toValue()})
+}
+
 // updateState updates the parser state.
 func (p *Parser) updateState(newState parserState) {
 	switch {
@@ -298,7 +303,7 @@ func (p *Parser) parseValueContent() bool {
 
 	default:
 		// If we don't have a list or map, just emit a single value.
-		p.emit(ValueEvent{p.toValue()})
+		p.emitValueEvent()
 		p.advance() // Consume the value.
 		return true
 	}
@@ -308,7 +313,7 @@ func (p *Parser) parseValueContent() bool {
 func (p *Parser) parseListValue() bool {
 	// It's a regular list.
 	p.emit(ListStartEvent{})
-	p.emit(ValueEvent{p.toValue()})
+	p.emitValueEvent()
 
 	// Advance to the next token for the list separator.
 	p.advance()
@@ -317,7 +322,7 @@ func (p *Parser) parseListValue() bool {
 		if !p.advance() || !p.isValue() {
 			return false
 		}
-		p.emit(ValueEvent{p.toValue()})
+		p.emitValueEvent()
 
 		// Advance to the next token to check for more separators.
 		p.advance()
@@ -373,7 +378,7 @@ func (p *Parser) parseDictPair() bool {
 		return false
 	}
 
-	return p.emit(ValueEvent{p.toValue()}) && p.advance()
+	return p.emitValueEvent() && p.advance()
 }
 
 // isValue parses a single value
