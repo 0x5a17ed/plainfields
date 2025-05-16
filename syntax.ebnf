@@ -57,14 +57,16 @@ ListSeparator       ::= ";"
 
 PairSeparator       ::= ":"
 
-WS                  ::= [ \t\n\r]+
+WS                  ::= ( " " | "\t" | "\n" | "\r" )+
 
 Letter              ::= [A-Za-z]
 
-Digit               ::= [0-9]
+Digit               ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 
-HexDigit            ::= [0-9A-Fa-f]
+HexDigit            ::= Digit
+                        | "A" | "B" | "C" | "D" | "E" | "F"
+                        | "a" | "b" | "c" | "d" | "e" | "f"
 
-OctalDigit          ::= [0-7]
+OctalDigit          ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7"
 
-BinaryDigit         ::= [01]
+BinaryDigit         ::= "0" | "1"
