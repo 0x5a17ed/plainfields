@@ -81,7 +81,6 @@ func TestValue_Conversions(t *testing.T) {
 		wantBool   *bool
 		wantNil    bool
 	}{
-		{input: `,`, wantRaw: p("nil"), wantNil: true},
 		{input: `nil`, wantNil: true},
 
 		{input: `field`, wantString: p("field")},

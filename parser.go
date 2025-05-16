@@ -228,21 +228,16 @@ func (p *Parser) parseField() bool {
 		// If it's not an assignment, treat it as an ordered value.
 		fallthrough
 
-	case TokenFieldSeparator, TokenString, TokenNumber, TokenTrue, TokenFalse, TokenNil:
+	case TokenString, TokenNumber, TokenTrue, TokenFalse, TokenNil:
 		if !p.config.AllowOrdered || p.state > orderedState {
 			return p.errorf("ordered value not allowed here")
 		}
 		p.updateState(orderedState)
 
-		if p.current.Typ == TokenFieldSeparator {
-			p.emit(ValueEvent{NilValue{}})
-			return true
-		} else {
-			return p.parseValueContent()
-		}
+		return p.parseValueContent()
 
 	default:
-		return p.errorf("expected field prefix, identifier, or value, got %s", p.current.Typ)
+		return p.errorf("expected identifier, or value, got %s", p.current.Typ)
 	}
 }
 
